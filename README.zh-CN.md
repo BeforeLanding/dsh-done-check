@@ -1,6 +1,6 @@
 # dsh-done-check
 
-[English](README.md) | 中文
+[English](https://github.com/BeforeLanding/dsh-done-check/blob/main/README.md) | 中文
 
 [![CI](https://github.com/BeforeLanding/dsh-done-check/actions/workflows/ci.yml/badge.svg)](https://github.com/BeforeLanding/dsh-done-check/actions/workflows/ci.yml)
 
@@ -15,15 +15,15 @@
 
 ## 状态
 
-开发中（v0.1 未发布，尚未发到 npm）。核心逻辑和 DSH 插件层都已完成，并在真实的 DSH Web 宿主（0.1.5-rc.1 和 0.2.1-rc.5）上走通了全流程，检查由真实的 `pwsh` 工具在沙箱中执行。支持的 DSH 版本：`>=0.1.5-rc.1 <0.3.0`。设计见 [docs/DESIGN.md](docs/DESIGN.md)。
+v0.1.0，早期版本。并在真实的 DSH Web 宿主（0.1.5-rc.1 和 0.2.1-rc.5）上走通了全流程，检查由真实的 `pwsh` 工具在沙箱中执行。支持的 DSH 版本：`>=0.1.5-rc.1 <0.3.0`。设计见 [docs/DESIGN.md](https://github.com/BeforeLanding/dsh-done-check/blob/main/docs/DESIGN.md)。
 
-## 安装（从源码）
+## 安装
 
 ```bash
-pnpm install
-pnpm build
-dsh plugin --profile <你的 profile> add /path/to/dsh-done-check
+dsh plugin --profile <你的 profile> add dsh-done-check
 ```
+
+从源码安装：先 `pnpm install && pnpm build`，再 `dsh plugin --profile <你的 profile> add /path/to/dsh-done-check`。
 
 ## 命令与工具
 

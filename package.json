@@ -1,6 +1,6 @@
 {
   "name": "dsh-done-check",
-  "version": "0.0.0",
+  "version": "0.1.0",
   "description": "Executable acceptance checklists for DeepSeek Harness coding tasks: every \"done\" has a recorded check result, and results go stale when the code changes.",
   "type": "module",
   "license": "MIT",
@@ -8,6 +8,10 @@
   "repository": {
     "type": "git",
     "url": "git+https://github.com/BeforeLanding/dsh-done-check.git"
+  },
+  "homepage": "https://github.com/BeforeLanding/dsh-done-check#readme",
+  "bugs": {
+    "url": "https://github.com/BeforeLanding/dsh-done-check/issues"
   },
   "keywords": [
     "dsh",
@@ -31,9 +35,11 @@
   },
   "files": [
     "lib",
+    "!lib/**/*.tsbuildinfo",
     "cordis.patch.yml",
     "README.md",
     "README.zh-CN.md",
+    "CHANGELOG.md",
     "LICENSE"
   ],
   "engines": {
@@ -48,7 +54,8 @@
   "scripts": {
     "build": "tsc -p tsconfig.build.json",
     "typecheck": "tsc --noEmit",
-    "test": "node --test \"test/**/*.test.ts\""
+    "test": "node --test \"test/**/*.test.ts\"",
+    "prepublishOnly": "pnpm typecheck && pnpm build && pnpm test"
   },
   "dependencies": {
     "js-yaml": "^4.1.0",

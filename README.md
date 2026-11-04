@@ -1,6 +1,6 @@
 # dsh-done-check
 
-English | [中文](README.zh-CN.md)
+English | [中文](https://github.com/BeforeLanding/dsh-done-check/blob/main/README.zh-CN.md)
 
 [![CI](https://github.com/BeforeLanding/dsh-done-check/actions/workflows/ci.yml/badge.svg)](https://github.com/BeforeLanding/dsh-done-check/actions/workflows/ci.yml)
 
@@ -15,15 +15,15 @@ Executable acceptance checklists for [DeepSeek Harness](https://github.com/deeps
 
 ## Status
 
-In development (v0.1 not released, not on npm yet). The core and the DSH plugin layer are done. The full flow has been run on real DSH web hosts (0.1.5-rc.1 and 0.2.1-rc.5), with checks executed by the real `pwsh` tool inside its sandbox. Supported DSH: `>=0.1.5-rc.1 <0.3.0`. Design: [docs/DESIGN.md](docs/DESIGN.md) (in Chinese). Status messages are currently in Chinese only.
+v0.1.0, an early release. The full flow has been run on real DSH web hosts (0.1.5-rc.1 and 0.2.1-rc.5), with checks executed by the real `pwsh` tool inside its sandbox. Supported DSH: `>=0.1.5-rc.1 <0.3.0`. Design: [docs/DESIGN.md](https://github.com/BeforeLanding/dsh-done-check/blob/main/docs/DESIGN.md) (in Chinese). Status messages are currently in Chinese only.
 
-## Install (from a checkout)
+## Install
 
 ```bash
-pnpm install
-pnpm build
-dsh plugin --profile <your-profile> add /path/to/dsh-done-check
+dsh plugin --profile <your-profile> add dsh-done-check
 ```
+
+From a checkout: `pnpm install && pnpm build`, then `dsh plugin --profile <your-profile> add /path/to/dsh-done-check`.
 
 ## Commands and tools
 
