@@ -13,7 +13,30 @@
 
 ## 状态
 
-开发中（v0.1 未发布）。核心逻辑已完成并有测试覆盖：清单解析，定义哈希与结构哈希，工作区指纹，状态推导（含执行不稳定、无法判定），以及证据存储（独立运行记录、日志上限、跨进程加锁）。DSH 插件层（工具、命令、两个执行入口的授权）尚未完成。设计见 [docs/DESIGN.md](docs/DESIGN.md)。
+开发中（v0.1 未发布，尚未发到 npm）。核心逻辑和 DSH 插件层都已完成，并在真实的 DSH 0.1.5 Web 宿主上走通了全流程，检查由真实的 `pwsh` 工具在沙箱中执行。支持的 DSH 版本：`>=0.1.5-rc.1 <0.2.0`（0.2.x 尚未验证）。设计见 [docs/DESIGN.md](docs/DESIGN.md)。
+
+## 安装（从源码）
+
+```bash
+pnpm install
+pnpm build
+dsh plugin --profile <你的 profile> add /path/to/dsh-done-check
+```
+
+## 命令与工具
+
+| | 谁用 | 作用 |
+|---|---|---|
+| `/done-check` | 你 | 状态表 |
+| `/done-check confirm` | **仅你** | 确认当前的 `done-check.yaml` |
+| `/done-check run [id…]` | 你 | 执行已确认的自动检查 |
+| `/done-check pass\|fail <id> [备注]` | **仅你** | 记录人工检查结论 |
+| `/done-check show <id>` | 你 | 最近一次的证据：命令、退出码、执行器、指纹、输出末尾 |
+| `done_check_draft` | Agent | 校验起草的清单（由 Agent 用自己的文件工具保存） |
+| `done_check_run` | Agent | 执行已确认的自动检查 |
+| `done_check_status` | Agent | 读取状态 |
+
+无论从哪个入口，每条检查命令都交给你的 DSH 组合中已注册的 shell 工具（`pwsh`/`bash`）执行，所以你的权限规则和审批提示都会生效。被拒绝或无法执行的命令会显示为"未执行"，不记录证据。
 
 ## 工作方式
 

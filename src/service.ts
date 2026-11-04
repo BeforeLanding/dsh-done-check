@@ -40,6 +40,13 @@ export interface ServiceEnv {
 
 export class DoneCheckError extends Error {}
 
+/**
+ * Thrown by an `exec` when the command never ran — denied by a permission
+ * policy, no shell tool registered, PTC collapse, … No evidence exists, so
+ * nothing is recorded and the previous result stays in place.
+ */
+export class NotExecutedError extends Error {}
+
 export async function loadChecklist(root: string): Promise<Checklist> {
   let text: string
   try {
@@ -175,6 +182,14 @@ export async function runChecks(env: ServiceEnv, exec: Exec, opts: { ids?: reado
       try {
         out = await exec({ command: check.run ?? '', cwd: resolve(env.root, check.cwd), timeoutMs: check.timeout * 1000, signal: opts.signal })
       } catch (err) {
+        if (err instanceof NotExecutedError) {
+          await env.store.update(env.root, (s) => {
+            const { [check.id]: _gone, ...active } = s.active
+            return { state: { ...s, active }, value: undefined }
+          })
+          skipped.push({ checkId: check.id, reason: `未执行：${err.message}` })
+          continue
+        }
         out = { exitCode: null, signal: null, timedOut: false, aborted: opts.signal.aborted, infraError: (err as Error).message, stdout: '', stderr: '', shell: null }
       }
       const finishedAt = nowOf(env)
@@ -195,7 +210,7 @@ export async function runChecks(env: ServiceEnv, exec: Exec, opts: { ids?: reado
         .then((c) => (c ? definitionHash(c) : null), () => null)
       const log = await env.store.writeLog(env.root, runId, `$ ${check.run}\n--- stdout ---\n${out.stdout}\n--- stderr ---\n${out.stderr}\n`)
       const record: AutoRun = {
-        kind: 'auto', runId, checkId: check.id, definitionHash: hash, fingerprint: fpBefore,
+        kind: 'auto', runId, checkId: check.id, command: check.run ?? '', definitionHash: hash, fingerprint: fpBefore,
         startedAt: startedAt.toISOString(), finishedAt: finishedAt.toISOString(), durationMs,
         outcome, exitCode: out.exitCode, signal: out.signal, timedOut: out.timedOut, errorMessage: out.infraError,
         shell: out.shell, stdoutTail: tail(out.stdout), stderrTail: tail(out.stderr), log,

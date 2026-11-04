@@ -38,6 +38,8 @@ export interface LogRef {
 /** Produced by the execution path; never by the agent. */
 export interface AutoRun extends RunBase {
   readonly kind: 'auto'
+  /** The exact command that ran (the definition may change later). */
+  readonly command: string
   readonly outcome: Outcome
   readonly finishedAt: string
   readonly durationMs: number

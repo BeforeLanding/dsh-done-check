@@ -13,7 +13,30 @@ Executable acceptance checklists for [DeepSeek Harness](https://github.com/deeps
 
 ## Status
 
-In development (v0.1 not released). The core is done and covered by tests: checklist parsing, definition and structure hashes, the workspace fingerprint, state derivation (including unstable runs and "cannot determine"), and the evidence store (per-run records, log cap, cross-process locking). The DSH plugin layer (tools, commands, and authorization for both execution entry points) is not done yet. Design: [docs/DESIGN.md](docs/DESIGN.md) (in Chinese). Status messages are currently in Chinese only.
+In development (v0.1 not released, not on npm yet). The core and the DSH plugin layer are done. The full flow has been run on a real DSH 0.1.5 web host, with checks executed by the real `pwsh` tool inside its sandbox. Supported DSH: `>=0.1.5-rc.1 <0.2.0` (0.2.x not verified yet). Design: [docs/DESIGN.md](docs/DESIGN.md) (in Chinese). Status messages are currently in Chinese only.
+
+## Install (from a checkout)
+
+```bash
+pnpm install
+pnpm build
+dsh plugin --profile <your-profile> add /path/to/dsh-done-check
+```
+
+## Commands and tools
+
+| | Who | What |
+|---|---|---|
+| `/done-check` | you | Status table |
+| `/done-check confirm` | **you only** | Confirm the current `done-check.yaml` |
+| `/done-check run [id…]` | you | Run confirmed automatic checks |
+| `/done-check pass\|fail <id> [note]` | **you only** | Record a manual verdict |
+| `/done-check show <id>` | you | Latest evidence: command, exit code, executor, fingerprint, output tail |
+| `done_check_draft` | agent | Validate a drafted checklist (the agent saves it with its own file tool) |
+| `done_check_run` | agent | Run confirmed automatic checks |
+| `done_check_status` | agent | Read the status |
+
+Every check command, from either entry point, is dispatched to the shell tool your DSH composition already registered (`pwsh` / `bash`), so your permission rules and approval prompts apply to it. A command that is denied or cannot run is reported as "not executed" and records no evidence.
 
 ## How it works
 

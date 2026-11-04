@@ -118,25 +118,29 @@ checks:
 
 | 能力 | 用途 | 谁能触发 |
 |---|---|---|
-| `ctx.tools`：`done_check_draft` | 校验并写入 `done-check.yaml`，提示用户确认 | Agent |
+| `ctx.tools`：`done_check_draft` | 校验 Agent 起草的清单（含 `watch` 空匹配），返回错误或规范化 YAML；**不写文件**，由 Agent 用自己的文件工具写入，从而遵守会话的写入权限 | Agent |
 | `ctx.tools`：`done_check_run` | 执行已确认的自动项（授权方式见第 8 节） | Agent |
-| `ctx.tools`：`done_check_status` | 返回结构化状态与汇总 | Agent |
-| `ctx.commands`：`/done-check` | 状态表（Markdown） | 用户 |
+| `ctx.tools`：`done_check_status` | 返回结构化状态、汇总和 Markdown 状态表 | Agent |
+| `ctx.commands`：`/done-check` 或 `/done-check status` | 状态表（Markdown） | 用户 |
 | `/done-check confirm` | 确认当前清单 | **仅用户** |
-| `/done-check run [id…]` | 执行检查（两步，见第 8 节） | 用户 |
+| `/done-check run [id…]` | 执行检查（授权方式见第 8 节） | 用户 |
 | `/done-check pass\|fail <id> [备注]` | 人工项结论 | **仅用户** |
+| `/done-check show <id>` | 最近一次的证据：命令、退出码、执行器、指纹、日志路径、输出末尾 | 用户 |
 
-信任锚：确认清单和人工结论只能通过用户命令完成，命令不经过模型。
+信任锚：确认清单和人工结论只能通过用户命令完成，命令由界面执行，不经过模型。模型可见的工具里没有确认和人工结论（有测试断言）。
 
 ## 8. 命令执行与权限
 
-DSH 的执行和授权是两层：`ctx.shell` 执行器（`bash-local`、`bash-sandbox`、Windows 上的 `pwsh-local`、`pwsh-sandbox`）只负责运行命令；其中 `*-local` **不做任何隔离**，命令以 harness 进程的权限运行。逐次的允许/拒绝/询问策略属于工具调用的 `tools/pre-execute` 阶段，直接调用 `ctx.shell` 会绕过这一层。因此：
+DSH 的执行和授权是两层：`ctx.shell` 执行器（`bash-local`、`bash-sandbox`、Windows 上的 `pwsh-local`、`pwsh-sandbox`）只负责运行命令；其中 `*-local` **不做任何隔离**，命令以 harness 进程的权限运行。逐次的允许/拒绝/询问策略属于工具调用的 `tools/pre-execute` 阶段，直接调用 `ctx.shell` 会绕过这一层。因此插件**从不调用 `ctx.shell`**，两个入口都把每条检查命令交给已注册的 shell 工具执行：
 
-- **Agent 入口**（`done_check_run`）：每条检查命令都必须经过与 Agent 自己调用 `bash`/`pwsh` 工具**相同**的授权流程，让权限策略看到的是真实命令，而不只是 `done_check_run`。实现方式是通过工具注册表转发给已注册的 shell 工具。若目标 DSH 版本做不到这一点，`done_check_run` 就不执行命令，只返回"请用户运行 `/done-check run`"。**绝不降级为直接调用 `ctx.shell`。**
-- **用户入口**（`/done-check run`）：第一步只列出将要执行的确切命令、工作目录和执行器类型，并给出一个短期令牌；用户再输入 `/done-check run <令牌>` 才执行。令牌绑定当时各项的定义哈希，期间清单若被改动则作废。用户亲自看过命令、亲自输入，才算授权。
+- **Agent 入口**（`done_check_run`）：通过 `ctx.tools.execute` 发起嵌套调用，带上外层调用的 `parent` 令牌和 `rootCallId`。权限策略、守卫、审批看到的是 `pwsh`/`bash` 工具和真实命令，而不只是 `done_check_run`。
+- **用户入口**（`/done-check run`）：同样经 `ctx.tools.execute`，以当前会话的 Agent 身份发起顶层调用，走完全相同的管线。
+- **可用的 shell 工具靠派发来确定**：真实组合里工具按 Agent 作用域注册，无作用域的 `ctx.tools.get()` 看不到它们。所以插件直接以该 Agent 身份派发；返回 `UNKNOWN_TOOL` 就换下一个（Windows 先 `pwsh` 后 `bash`，其他平台相反），都没有就报"没有可用的 shell 工具"。
+- **没有执行就没有证据**：被策略拒绝、没有可用 shell 工具、沙箱运行器自身失败、PTC 模式下拒绝顶层原生调用等情况，都记为"未执行：原因"，不写运行记录，上次结果保持不变。被取消的调用记为一次取消的尝试。**绝不降级为直接调用 `ctx.shell`。**
 - 确认清单从来不是执行授权。
-- 命令由当前组合挂载的 shell 解释：POSIX 上通常是 bash，Windows 上是 PowerShell。为一种 shell 写的命令在另一种上可能失败，结果照实记录为失败或执行出错，证据中写明执行器类型。
-- 兼容版本：在本机 DSH 0.1.5-rc.1 上开发；插件层完成并在 0.2.x 上核实后，再在 `package.json` 写入 `engines.dsh` 范围。工具转发 API 和命令接口以实际验证的版本为准。
+- **不再需要"两步令牌"**（第 2 版设计曾为用户入口设计过）：执行前每项都要与确认时的定义哈希一致，Agent 改了命令，该项就变成"清单已改动"而被跳过，所以执行的永远是用户确认过的那条命令；授权则由上面的同一条管线负责。令牌只会增加操作步骤，提供不了额外保护。
+- 命令由当前组合挂载的 shell 解释：POSIX 上通常是 bash，Windows 上是 PowerShell。为一种 shell 写的命令在另一种上可能失败，结果照实记录，证据中写明执行器（例如 `pwsh (sandbox: workspace-write)`）。
+- 兼容版本：`engines.dsh` 为 `>=0.1.5-rc.1 <0.2.0`，只声明已实际验证的版本；0.2.x 核实后再放宽。
 
 ## 9. 分层
 
@@ -144,20 +148,23 @@ DSH 的执行和授权是两层：`ctx.shell` 执行器（`bash-local`、`bash-s
 src/core/      纯逻辑，不依赖 DSH：清单解析校验、定义/结构哈希、指纹、状态推导、汇总
 src/store/     state.json、运行记录、日志的读写、上限、加锁
 src/service.ts 四个操作：confirm / runChecks / decide / report；执行器由调用方注入
-src/plugin/    DSH 胶水：注册工具与命令，实现第 8 节的两个执行入口
+src/plugin/    DSH 胶水：index（工具与命令）、shell（派发到 shell 工具）、render（Markdown）
 ```
 
-core、store、service 用 `node:test` 在真实 git 仓库上覆盖；plugin 层在真实 DSH profile 里用 `dsh plugin add` 手工验收。
+- core、store、service 用 `node:test` 在真实 git 仓库上覆盖。
+- plugin 层有两种测试：一是在真实的 DSH 0.1.5 `ToolRuntime`、`CommandRuntime`、`SystemPrompt` 上启动插件的集成测试，只有 shell 工具是替身，并安装一条真实的 `pre-execute` 拒绝策略；二是 shell 派发的单元测试，覆盖作用域内不可见、拒绝、取消、沙箱运行器失败。
 
 ## 10. v0.1 发布标准
 
-1. 在一个真实项目里走完：确认清单 → 执行检查 → 查看证据 → 修改代码 → 看到结果过期 → 重新验收。
+1. 在一个真实项目里走完：确认清单 → 执行检查 → 查看证据 → 修改代码 → 看到结果过期 → 重新验收。**已完成（2026-11-04）**：在隔离 `DSH_HOME` 的真实 DSH 0.1.5-rc.1 Web 宿主上，用 `dsh plugin add` 安装，对示例仓库走完全程；检查经真实 `pwsh` 工具在 `workspace-write` 沙箱中执行。
 2. 测试集全部通过，至少包含以下反例：
    - 过期判定：改已跟踪文件、新增未跟踪文件、改未跟踪且被忽略的文件（不触发）、改匹配 `.gitignore` 的已跟踪文件（触发）、改 `watch` 外文件（不触发）、改回原样（恢复）、删除文件、提交删除和重命名（不触发）。
    - 清单：改某一项（仅该项变为"清单已改动"）、删除失败项和新增项、改任务描述（结构已变）、`watch` 空匹配（拒绝）。
-   - 执行：执行期间改文件后又改回（仍为不稳定）、执行期间改定义（不稳定）、超时与执行器故障（执行出错）、取消（保留上次结果并注明）、执行中状态与重复执行被拒。
+   - 执行：执行期间改文件后又改回（仍为不稳定）、执行期间改定义（不稳定）、超时与执行器故障（执行出错）、取消（保留上次结果并注明）、执行中状态与重复执行被拒、权限策略拒绝（未执行、无证据）。
    - 证据：运行记录损坏、`state.json` 损坏、工作区无法读取（均为无法判定）、日志截断、历史裁剪、跨实例并发写不丢更新。
 3. README 第一屏写明第 1 节的边界与威胁模型，以及 `*-local` 执行器不隔离。
+
+尚未在真实宿主上验证的：由真实模型调用三个 Agent 工具（需要付费模型调用）。这条路径已由真实 `ToolRuntime` 上的集成测试覆盖。
 
 ## 11. 之后再说
 

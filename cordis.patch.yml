@@ -1,0 +1,3 @@
+- insert:
+    - id: done-check
+      name: dsh-done-check/plugin
