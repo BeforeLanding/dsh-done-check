@@ -15,23 +15,13 @@
 
 ## 演示
 
-以下截图来自真实的 DSH Web 会话（DSH 0.1.5，示例仓库里有一个 CSV 导出函数）。
+真实的 DSH Web 流程：**检查通过 → 修改代码 → 旧结果过期 → 重跑失败 → 查看证据**。采集自 DSH 0.1.5-rc.1 和一个 CSV 导出示例仓库，保留完整 DSH 界面，每条完整命令停留 3 秒后再显示结果，压缩执行等待时间。
 
-**1. 约定的检查全部通过**：`/done-check`
+![真实 DSH 流程：代码改动后旧结果过期，重跑抓住 CSV 回归，证据中记录退出码 1 和 toCsv mismatch](https://raw.githubusercontent.com/BeforeLanding/dsh-done-check/main/docs/images/done-check-demo.gif)
 
-![三项检查全部通过](https://raw.githubusercontent.com/BeforeLanding/dsh-done-check/main/docs/images/01-status-passed.png)
+把 CSV 分隔符从 `,` 改成 `;` 后，旧结果失效。`/done-check run` 抓住回归，`/done-check show export-tests` 展示命令、退出码、执行器、代码指纹和日志。片头的人工结论在录制前已确认；重跑自动检查不会让它重新有效。
 
-**2. 代码改了，旧结果随之过期**：同时列出变化的文件
-
-![src/export.mjs 改动后三项都显示已过期](https://raw.githubusercontent.com/BeforeLanding/dsh-done-check/main/docs/images/02-status-stale.png)
-
-**3. 重新执行，抓住回归**：`/done-check run`；人工项在你重新确认之前保持"已过期"
-
-![export-tests 失败（退出码 1），syntax 仍然通过](https://raw.githubusercontent.com/BeforeLanding/dsh-done-check/main/docs/images/03-run-failed.png)
-
-**4. 结论背后的证据**：`/done-check show export-tests`
-
-![命令、退出码、沙箱执行器、指纹、日志路径和 stderr 末尾](https://raw.githubusercontent.com/BeforeLanding/dsh-done-check/main/docs/images/04-show-evidence.png)
+[静态预览](https://raw.githubusercontent.com/BeforeLanding/dsh-done-check/main/docs/images/done-check-demo-poster.png) · [MP4 视频](https://github.com/BeforeLanding/dsh-done-check/raw/refs/heads/main/docs/images/done-check-demo.mp4)
 
 ## 状态
 

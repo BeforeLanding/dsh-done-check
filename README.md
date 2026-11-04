@@ -15,23 +15,13 @@ Executable acceptance checklists for [DeepSeek Harness](https://github.com/deeps
 
 ## Demo
 
-Screenshots from a real DSH web session (DSH 0.1.5, demo repo with a CSV export function). Status text is Chinese for now.
+A real DSH Web workflow: **passed → code changed → stale → re-run fails → inspect evidence**. Captured on DSH 0.1.5-rc.1 with a small CSV export repository; the full DSH interface is shown, with each complete command held for 3 seconds before its result. Waiting time is shortened; status text is Chinese.
 
-**1. All agreed checks pass** — `/done-check`
+![Real DSH workflow: old results become stale after a code change, re-running catches the CSV regression, and the evidence shows exit code 1 and toCsv mismatch](https://raw.githubusercontent.com/BeforeLanding/dsh-done-check/main/docs/images/done-check-demo.gif)
 
-![All three checks pass](https://raw.githubusercontent.com/BeforeLanding/dsh-done-check/main/docs/images/01-status-passed.png)
+Changing the CSV separator from `,` to `;` invalidates the old results. `/done-check run` then catches the regression, while `/done-check show export-tests` reveals the command, exit code, executor, fingerprint and log. The manual verdict was recorded before this clip and stays stale after re-running automatic checks.
 
-**2. The code changes, so the old results go stale** — the changed file is named
-
-![All three checks are stale after src/export.mjs changed](https://raw.githubusercontent.com/BeforeLanding/dsh-done-check/main/docs/images/02-status-stale.png)
-
-**3. Re-running catches the regression** — `/done-check run`; the manual check stays stale until you re-confirm it
-
-![export-tests fails with exit code 1, syntax still passes](https://raw.githubusercontent.com/BeforeLanding/dsh-done-check/main/docs/images/03-run-failed.png)
-
-**4. The evidence behind a result** — `/done-check show export-tests`
-
-![Command, exit code, sandboxed executor, fingerprint, log path and stderr tail](https://raw.githubusercontent.com/BeforeLanding/dsh-done-check/main/docs/images/04-show-evidence.png)
+[Static preview](https://raw.githubusercontent.com/BeforeLanding/dsh-done-check/main/docs/images/done-check-demo-poster.png) · [MP4](https://github.com/BeforeLanding/dsh-done-check/raw/refs/heads/main/docs/images/done-check-demo.mp4)
 
 ## Status
 
