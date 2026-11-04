@@ -38,7 +38,7 @@
   ],
   "engines": {
     "node": ">=22.19",
-    "dsh": ">=0.1.5-rc.1 <0.2.0"
+    "dsh": ">=0.1.5-rc.1 <0.3.0"
   },
   "dsh": {
     "bundle": {
@@ -56,9 +56,9 @@
   },
   "peerDependencies": {
     "@deepseek-ai/cordis": "^4.0.0",
-    "@deepseek-ai/dsh-commands": ">=0.1.5-rc.1 <0.2.0",
-    "@deepseek-ai/dsh-home-paths": ">=0.1.5-rc.1 <0.2.0",
-    "@deepseek-ai/dsh-tools": ">=0.1.5-rc.1 <0.2.0"
+    "@deepseek-ai/dsh-commands": ">=0.1.5-rc.1 <0.3.0",
+    "@deepseek-ai/dsh-home-paths": ">=0.1.5-rc.1 <0.3.0",
+    "@deepseek-ai/dsh-tools": ">=0.1.5-rc.1 <0.3.0"
   },
   "devDependencies": {
     "@deepseek-ai/cordis": "4.0.2",
@@ -70,5 +70,6 @@
     "@types/node": "^22.10.0",
     "@types/picomatch": "^4.0.0",
     "typescript": "^5.8.0"
-  }
+  },
+  "packageManager": "pnpm@11.7.0"
 }

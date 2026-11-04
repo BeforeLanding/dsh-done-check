@@ -29,9 +29,19 @@ interface AgentLike {
   readonly session?: { readonly header?: { readonly cwd?: string } }
 }
 
-/** The git top-level of the agent's session workspace. */
-export async function projectRootFor(agent: unknown): Promise<string> {
-  const cwd = (agent as AgentLike | undefined)?.session?.header?.cwd
+/** DSH 0.2+ service: the session's current working directory (it can change mid-session). */
+export interface WorkingDirectoryLike {
+  get(session: unknown): string
+}
+
+/**
+ * The git top-level of the agent's current working directory. Uses the
+ * `workingDirectory` service when the host has one (0.2+), else the
+ * directory the session was created in (0.1.x).
+ */
+export async function projectRootFor(agent: unknown, workingDirectory?: WorkingDirectoryLike): Promise<string> {
+  const session = (agent as AgentLike | undefined)?.session
+  const cwd = workingDirectory && session ? workingDirectory.get(session) : session?.header?.cwd
   if (!cwd) throw new DoneCheckError('当前会话没有工作目录')
   try {
     const { stdout } = await execFileAsync('git', ['rev-parse', '--show-toplevel'], { cwd })
@@ -68,7 +78,13 @@ export function parseCommandInput(raw: string): { sub: string; args: string[]; r
 export function apply(ctx: Context): void {
   const store = new StateStore(dshHomePath('done-check'))
   const tools = ctx.tools as unknown as ToolsLike
-  const envFor = async (agent: unknown): Promise<ServiceEnv> => ({ root: await projectRootFor(agent), store })
+  // Optional: present on DSH 0.2+, absent on 0.1.x (then this callback never runs).
+  let workingDirectory: WorkingDirectoryLike | undefined
+  ctx.inject(['workingDirectory'], (c) => {
+    workingDirectory = (c as unknown as { workingDirectory: WorkingDirectoryLike }).workingDirectory
+    c.effect(() => () => { workingDirectory = undefined })
+  })
+  const envFor = async (agent: unknown): Promise<ServiceEnv> => ({ root: await projectRootFor(agent, workingDirectory), store })
 
   ctx.tools.register(defineTool({
     name: 'done_check_draft',
@@ -92,7 +108,7 @@ export function apply(ctx: Context): void {
       },
     },
     async execute(args, exec) {
-      const root = await projectRootFor(exec.agent)
+      const root = await projectRootFor(exec.agent, workingDirectory)
       const parsed = parseChecklist(args.yaml)
       if (!parsed.ok) return { ok: false, errors: [...parsed.errors], normalized: null, path: `${root}/${CHECKLIST_FILE}` }
       const snapshot = await snapshotWorkspace(root)

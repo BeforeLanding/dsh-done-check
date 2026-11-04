@@ -2,6 +2,8 @@
 
 [English](README.md) | 中文
 
+[![CI](https://github.com/BeforeLanding/dsh-done-check/actions/workflows/ci.yml/badge.svg)](https://github.com/BeforeLanding/dsh-done-check/actions/workflows/ci.yml)
+
 为 [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness) 编码任务保存可执行的验收清单：每条"已完成"都有真实执行的检查结果，代码变化后旧结果自动标记为需要重验。
 
 > **它能说明什么，不能说明什么**
@@ -13,7 +15,7 @@
 
 ## 状态
 
-开发中（v0.1 未发布，尚未发到 npm）。核心逻辑和 DSH 插件层都已完成，并在真实的 DSH 0.1.5 Web 宿主上走通了全流程，检查由真实的 `pwsh` 工具在沙箱中执行。支持的 DSH 版本：`>=0.1.5-rc.1 <0.2.0`（0.2.x 尚未验证）。设计见 [docs/DESIGN.md](docs/DESIGN.md)。
+开发中（v0.1 未发布，尚未发到 npm）。核心逻辑和 DSH 插件层都已完成，并在真实的 DSH Web 宿主（0.1.5-rc.1 和 0.2.1-rc.5）上走通了全流程，检查由真实的 `pwsh` 工具在沙箱中执行。支持的 DSH 版本：`>=0.1.5-rc.1 <0.3.0`。设计见 [docs/DESIGN.md](docs/DESIGN.md)。
 
 ## 安装（从源码）
 

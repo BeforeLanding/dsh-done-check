@@ -10,7 +10,7 @@ import { mkdtempSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { after, before, describe, it } from 'node:test'
-import { Context } from '@deepseek-ai/cordis'
+import { Context, Service } from '@deepseek-ai/cordis'
 import CommandRuntime from '@deepseek-ai/dsh-commands'
 import SystemPrompt from '@deepseek-ai/dsh-system-prompt'
 import ToolRuntime, { defineTool } from '@deepseek-ai/dsh-tools'
@@ -146,6 +146,28 @@ describe('plugin on the real DSH runtimes', () => {
     const bad = await callTool('done_check_draft', { yaml: 'version: 1\ntask: t\nchecks:\n  - {id: a, name: A, run: "true", watch: ["srcc/**"]}\n' }, agentFor(repo.root))
     assert.equal(bad.value.ok, false)
     assert.match(bad.value.errors[0], /watch 没有匹配任何文件/)
+  })
+
+  it('follows the workingDirectory service when the host provides one (DSH 0.2+)', async () => {
+    const created = makeRepo({ 'a.txt': 'a\n' })
+    const moved = makeRepo({ 'b.txt': 'b\n' })
+    moved.write('done-check.yaml', 'version: 1\ntask: 移动后的项目\nchecks:\n  - {id: m, name: M, manual: true}\n')
+    class WorkingDirectory extends (Service as any) {
+      constructor(c: any) { super(c, 'workingDirectory') }
+      get() { return moved.root }
+    }
+    const fiber = ctx.plugin(WorkingDirectory)
+    await new Promise((r) => setTimeout(r, 100))
+    try {
+      const res = await command(agentFor(created.root), '')
+      assert.equal(res.kind, 'success', res.text)
+      assert.match(res.text, /移动后的项目/)
+    } finally {
+      fiber.dispose()
+      await new Promise((r) => setTimeout(r, 50))
+    }
+    const back = await command(agentFor(created.root), '')
+    assert.match(back.text, /没有 done-check\.yaml/, 'without the service it falls back to the session header cwd')
   })
 
   it('refuses outside a git repository with a clear message', async () => {

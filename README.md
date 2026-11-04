@@ -2,6 +2,8 @@
 
 English | [中文](README.zh-CN.md)
 
+[![CI](https://github.com/BeforeLanding/dsh-done-check/actions/workflows/ci.yml/badge.svg)](https://github.com/BeforeLanding/dsh-done-check/actions/workflows/ci.yml)
+
 Executable acceptance checklists for [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness) coding tasks: every "done" is backed by a check that actually ran, and old results are flagged for re-check when the code changes.
 
 > **What it can and cannot tell you**
@@ -13,7 +15,7 @@ Executable acceptance checklists for [DeepSeek Harness](https://github.com/deeps
 
 ## Status
 
-In development (v0.1 not released, not on npm yet). The core and the DSH plugin layer are done. The full flow has been run on a real DSH 0.1.5 web host, with checks executed by the real `pwsh` tool inside its sandbox. Supported DSH: `>=0.1.5-rc.1 <0.2.0` (0.2.x not verified yet). Design: [docs/DESIGN.md](docs/DESIGN.md) (in Chinese). Status messages are currently in Chinese only.
+In development (v0.1 not released, not on npm yet). The core and the DSH plugin layer are done. The full flow has been run on real DSH web hosts (0.1.5-rc.1 and 0.2.1-rc.5), with checks executed by the real `pwsh` tool inside its sandbox. Supported DSH: `>=0.1.5-rc.1 <0.3.0`. Design: [docs/DESIGN.md](docs/DESIGN.md) (in Chinese). Status messages are currently in Chinese only.
 
 ## Install (from a checkout)
 
