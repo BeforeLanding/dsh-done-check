@@ -1,52 +1,54 @@
 # dsh-done-check
 
-为 [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness) 编码任务保存可执行的验收清单：每条"已完成"都有真实执行的检查结果，代码变化后旧结果自动标记为需要重验。
+English | [中文](README.zh-CN.md)
 
-> **它能说明什么，不能说明什么**
+Executable acceptance checklists for [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness) coding tasks: every "done" is backed by a check that actually ran, and old results are flagged for re-check when the code changes.
+
+> **What it can and cannot tell you**
 >
-> - "3 项验收中，2 项通过、1 项待人工确认"只表示**约定的检查**的结果，不表示需求已完整实现。插件不显示百分比或"完成度"。
-> - 防的是 Agent 随手改写结论：自己宣布测试通过、偷改检查命令、删掉失败项、伪造确认记录。不防拥有不受限 shell 的恶意 Agent，它可以改测试本身，也可以改 DSH home 下的文件。
-> - 确认清单不等于授权执行其中的命令。检查命令由当前 DSH 组合的 shell 执行器运行；`bash-local`/`pwsh-local` 不做任何隔离，需要隔离请组合对应的 sandbox 执行器。
-> - `watch` 是你声明的范围，不是自动分析出的依赖关系。
+> - A summary such as "3 checks: 2 passed, 1 awaiting manual confirmation" covers **only the agreed checks**. It does not mean the requirement is fully implemented. The plugin never shows a percentage or a "completion" score.
+> - It guards against an agent casually rewriting the verdict: claiming tests passed, quietly changing a check command, deleting a failing check, or forging a confirmation. It does not stop a malicious agent with an unrestricted shell, which can edit the tests themselves or the files under DSH home.
+> - Confirming a checklist does not authorize running its commands. Checks run on the shell executor of the current DSH composition; `bash-local` / `pwsh-local` provide no isolation, so compose the matching sandbox executor if you need it.
+> - `watch` is a scope you declare, not a dependency graph inferred for you.
 
-## 状态
+## Status
 
-开发中（v0.1 未发布）。核心逻辑已完成并有测试覆盖：清单解析，定义哈希与结构哈希，工作区指纹，状态推导（含执行不稳定、无法判定），以及证据存储（独立运行记录、日志上限、跨进程加锁）。DSH 插件层（工具、命令、两个执行入口的授权）尚未完成。设计见 [docs/DESIGN.md](docs/DESIGN.md)。
+In development (v0.1 not released). The core is done and covered by tests: checklist parsing, definition and structure hashes, the workspace fingerprint, state derivation (including unstable runs and "cannot determine"), and the evidence store (per-run records, log cap, cross-process locking). The DSH plugin layer (tools, commands, and authorization for both execution entry points) is not done yet. Design: [docs/DESIGN.md](docs/DESIGN.md) (in Chinese). Status messages are currently in Chinese only.
 
-## 工作方式
+## How it works
 
-1. 在项目根目录写 `done-check.yaml`（或让 Agent 起草）：
+1. Write `done-check.yaml` at the project root (or let the agent draft it):
 
    ```yaml
    version: 1
-   task: 新增 CSV 导出功能
+   task: Add CSV export
    checks:
      - id: export-tests
-       name: 导出相关测试通过
+       name: Export tests pass
        run: pnpm test -- export
        watch: ["src/**", "test/**"]
      - id: typecheck
-       name: TypeScript 类型检查通过
+       name: TypeScript type check passes
        run: pnpm tsc --noEmit
      - id: zh-filename
-       name: 中文文件名下载正常
+       name: Downloads with Chinese file names work
        manual: true
    ```
 
-2. 你用 `/done-check confirm` 确认清单。确认和人工结论只能由你通过命令完成，Agent 做不到。
-3. 检查经由 DSH 的 shell 执行器真实运行，记录退出码、输出、耗时和当时的工作区指纹。
-4. 工作区内容一变（包括未提交的修改），绑定旧内容的结果就显示为"已过期"，并列出变化的文件；清单里某项被改，该项显示为"清单已改动"；增删检查项或改任务描述，整份清单显示为"结构已变，待确认"。
-5. 执行期间工作区或定义发生变化的结果标记为"执行不稳定（须重跑）"，把文件改回去也不能恢复。
+2. You confirm the checklist with `/done-check confirm`. Confirmations and manual verdicts can only come from you through commands; the agent cannot make them.
+3. Checks really run through the DSH shell executor. The exit code, output, duration, and the workspace fingerprint at that moment are recorded.
+4. When the workspace content changes (uncommitted edits included), results bound to the old content show as stale, with the changed files listed. If one check is edited, that check shows as "definition changed". If checks are added or removed, or the task description changes, the whole checklist shows as "structure changed, needs confirmation".
+5. A result whose workspace or definition changed while it was running is marked "unstable, re-run required". Restoring the files does not bring it back.
 
-## 开发
+## Development
 
 ```bash
 pnpm install
 pnpm test
 ```
 
-需要 Node.js ≥ 22.19 和 git。
+Requires Node.js ≥ 22.19 and git.
 
-## 许可证
+## License
 
 MIT
