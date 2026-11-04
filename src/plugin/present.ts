@@ -357,7 +357,14 @@ const STATE_TEXT: Partial<Record<Shown, string>> = {
   awaiting: '等你确认', changed: '这项检查被修改过，需要你重新确认', unconfirmed: '清单还没有确认',
 }
 
+/** One check's block. The not-started reason's raw tool message goes last, indented like the item body so it stays attached to its item. */
 function itemDetail(view: View, item: Item, level: DetailLevel, withHeader: boolean): string[] {
+  const body = itemBody(view, item, level, withHeader)
+  if (level !== 'tech' || !item.notRun) return body
+  return [...body, '', '   技术详情', `      工具原始信息  ${item.notRun.detail}`, `      原因类别      ${item.notRun.kind}`]
+}
+
+function itemBody(view: View, item: Item, level: DetailLevel, withHeader: boolean): string[] {
   const out: string[] = []
   if (withHeader) out.push(`${item.n}. ${itemHeadline(item)}`)
   const text = STATE_TEXT[item.shown]
@@ -365,9 +372,6 @@ function itemDetail(view: View, item: Item, level: DetailLevel, withHeader: bool
   if (item.shown === 'cannot_run') out.push(`   没能运行：${item.notRunReason}`, '   这不是检查失败，也不表示功能测过了。')
   if (item.shown === 'unknown') out.push(`   无法判定：${item.status.reason ?? '验收记录无法读取'}`)
   if (item.status.reason && (item.shown === 'unstable' || item.shown === 'error')) out.push(`   ${item.status.reason}`)
-  if (level === 'tech' && item.notRun) {
-    out.push('', '技术详情', `   工具原始信息  ${item.notRun.detail}`, `   原因类别      ${item.notRun.kind}`)
-  }
   const rec = item.record
   if (!rec) {
     if (item.oldRun) out.push('   还没有针对当前定义的运行记录（之前的运行属于旧定义，不代表当前清单）。')

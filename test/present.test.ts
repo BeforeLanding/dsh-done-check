@@ -333,6 +333,11 @@ describe('why a command did not run (real-host findings)', () => {
     const item = itemsOf(v)[0]!
     assert.doesNotMatch(renderDetails(v, [item], 'run'), /SetNamedSecurityInfoW/, 'the default and run layers stay plain')
     assert.match(renderDetails(v, [item], 'tech'), /工具原始信息 {2}SetNamedSecurityInfoW failed: Win32 error 5[\s\S]*原因类别 {6}sandbox/)
+    const tech = renderDetails(v, [item], 'tech').split('\n')
+    const heading = tech.findIndex((l) => l === '   技术详情')
+    assert.ok(heading > 0, 'the subheading is indented like the item body')
+    assert.ok(tech.findIndex((l) => l.includes('没能运行：')) < heading, 'the item\'s own lines come before its technical block')
+    assert.match(tech[heading + 1]!, /^ {6}工具原始信息/)
   })
 
   it('shows an unrecognized reason as it is, instead of calling it a permission denial', async () => {
