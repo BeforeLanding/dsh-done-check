@@ -166,7 +166,7 @@ src/plugin/    DSH 胶水：index（工具与命令）、shell（派发到 shell
    - 证据：运行记录损坏、`state.json` 损坏、工作区无法读取（均为无法判定）、日志截断、历史裁剪、跨实例并发写不丢更新。
 3. README 第一屏写明第 1 节的边界与威胁模型，以及 `*-local` 执行器不隔离。
 
-尚未在真实宿主上验证的：由真实模型调用三个 Agent 工具（需要付费模型调用）。这条路径已由真实 `ToolRuntime` 上的集成测试覆盖。
+由真实模型调用 Agent 工具：2026-11-04 用已发布的 npm 包 `dsh-done-check@0.1.0`，在 DSH 0.1.5-rc.1 的 headless profile 上跑了一次真实模型任务。模型调用 `done_check_status` 和 `done_check_run`，两项自动检查经 `pwsh (sandbox: workspace-write)` 执行并通过。模型如实报告人工项需用户确认，没有越权判定。
 
 ## 11. 之后再说
 
