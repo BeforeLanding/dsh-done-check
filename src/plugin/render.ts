@@ -47,50 +47,73 @@ export function renderReport(report: Report, checklist: Checklist): string {
   ].join('\n')
 }
 
-/** Terminal colour/cursor escapes render as garbage in Markdown; evidence on disk keeps them. */
+/** Terminal colour/cursor escapes render as garbage; evidence on disk keeps them. */
 export function stripAnsi(text: string): string {
   return text.replaceAll(/\u001b\[[0-9;?]*[ -/]*[@-~]/g, '').replaceAll('\r\n', '\n')
 }
 
-function fence(raw: string): string {
-  const text = stripAnsi(raw)
-  const longest = Math.max(2, ...[...text.matchAll(/`+/g)].map((m) => m[0].length))
-  const f = '`'.repeat(longest + 1)
-  return `${f}text\n${text.trimEnd() || '(无输出)'}\n${f}`
+/**
+ * The status list for humans. DSH shows command output as preformatted text,
+ * not Markdown, and its font does not give CJK characters an exact double
+ * width, so nothing is aligned after CJK text: only the ASCII check id is
+ * padded, and everything else sits on its own indented line.
+ */
+export function renderReportText(report: Report, checklist: Checklist): string {
+  const names = new Map(checklist.checks.map((c) => [c.id, c]))
+  const idWidth = Math.max(...report.checks.map((s) => s.checkId.length))
+  const items = report.checks.map((s) => {
+    const c = names.get(s.checkId)
+    const lines = [`${s.checkId.padEnd(idWidth)}  ${STATE_LABELS[s.state]}`, `  ${c?.name ?? ''}${c?.manual ? '（人工）' : ''}`]
+    const n = note(s)
+    if (n) lines.push(`  ${n}`)
+    return lines.join('\n')
+  })
+  return [
+    `${checklist.task}：${report.summary}`,
+    '',
+    ...items.flatMap((item) => [item, '']),
+    '"通过"只表示约定的检查通过，不表示需求已完整实现。/done-check show <id> 查看证据。',
+  ].join('\n')
+}
+
+function block(raw: string): string {
+  const text = stripAnsi(raw).trimEnd()
+  return text ? text.split('\n').map((l) => `  ${l}`).join('\n') : '  (无输出)'
 }
 
 export function renderEvidence(record: RunRecord | undefined, checkName: string): string {
-  if (!record) return `**${cell(checkName)}**：还没有完成的运行或结论。`
-  const lines = [`**${cell(checkName)}**`, '']
+  if (!record) return `${checkName}：还没有完成的运行或结论。`
+  const fp = (r: RunRecord) => `${r.fingerprint.digest.slice(0, 12)}（覆盖 ${Object.keys(r.fingerprint.files).length} 个文件）`
   if (record.kind === 'manual') {
-    lines.push(`- 人工结论：${OUTCOME[record.outcome]}（${record.startedAt}）`)
-    if (record.note) lines.push(`- 备注：${record.note}`)
-    lines.push(`- 绑定指纹：\`${record.fingerprint.digest.slice(0, 12)}\`，覆盖 ${Object.keys(record.fingerprint.files).length} 个文件`)
-    return lines.join('\n')
+    return [
+      checkName,
+      `  人工结论  ${OUTCOME[record.outcome]}（${record.startedAt}）`,
+      ...(record.note ? [`  备注      ${record.note}`] : []),
+      `  绑定指纹  ${fp(record)}`,
+    ].join('\n')
   }
-  if (record.kind === 'cancelled') {
-    lines.push(`- 已取消的尝试（${record.startedAt}，${record.durationMs} ms）`)
-    return lines.join('\n')
-  }
-  lines.push(
-    `- 命令：\`${record.command}\``,
-    `- 结论：${OUTCOME[record.outcome]}；退出码 ${record.exitCode ?? '无'}${record.signal ? `，信号 ${record.signal}` : ''}${record.timedOut ? '，超时' : ''}`,
-    `- 执行器：${record.shell ?? '未知'}；开始 ${record.startedAt}；耗时 ${record.durationMs} ms`,
-    `- 绑定指纹：\`${record.fingerprint.digest.slice(0, 12)}\`，覆盖 ${Object.keys(record.fingerprint.files).length} 个文件`,
-  )
-  if (record.errorMessage) lines.push(`- 执行器错误：${record.errorMessage}`)
-  if (record.unstable) lines.push('- ⚠ 执行期间工作区或定义发生变化，该结果无效，须重跑')
-  if (record.log) lines.push(`- 完整日志：\`${record.log.path}\`${record.log.truncated ? `（已截断，原始 ${record.log.originalBytes} 字节）` : ''}`)
-  lines.push('', 'stdout（末尾）：', fence(record.stdoutTail), '', 'stderr（末尾）：', fence(record.stderrTail))
+  if (record.kind === 'cancelled') return `${checkName}\n  已取消的尝试（${record.startedAt}，${record.durationMs} ms）`
+  const lines = [
+    checkName,
+    `  命令      ${record.command}`,
+    `  结论      ${OUTCOME[record.outcome]}，退出码 ${record.exitCode ?? '无'}${record.signal ? `，信号 ${record.signal}` : ''}${record.timedOut ? '，超时' : ''}`,
+    `  执行器    ${record.shell ?? '未知'}`,
+    `  时间      ${record.startedAt}，耗时 ${record.durationMs} ms`,
+    `  绑定指纹  ${fp(record)}`,
+  ]
+  if (record.errorMessage) lines.push(`  执行器错误 ${record.errorMessage}`)
+  if (record.unstable) lines.push('  ⚠ 执行期间工作区或定义发生变化，该结果无效，须重跑')
+  if (record.log) lines.push(`  完整日志  ${record.log.path}${record.log.truncated ? `（已截断，原始 ${record.log.originalBytes} 字节）` : ''}`)
+  lines.push('', 'stdout（末尾）', block(record.stdoutTail), '', 'stderr（末尾）', block(record.stderrTail))
   return lines.join('\n')
 }
 
 export function renderRunSummary(run: RunSummary): string {
   const lines: string[] = []
   for (const r of run.ran) {
-    lines.push(`- \`${r.checkId}\`：${OUTCOME[r.outcome]}（退出码 ${r.exitCode ?? '无'}，${r.durationMs} ms）${r.unstable ? '，⚠ 执行期间工作区变化，结果无效' : ''}`)
+    lines.push(`${r.checkId}：${OUTCOME[r.outcome]}（退出码 ${r.exitCode ?? '无'}，${r.durationMs} ms）${r.unstable ? '，⚠ 执行期间工作区变化，结果无效' : ''}`)
   }
-  for (const id of run.cancelled) lines.push(`- \`${id}\`：已取消`)
-  for (const s of run.skipped) lines.push(`- \`${s.checkId}\`：跳过，${s.reason}`)
+  for (const id of run.cancelled) lines.push(`${id}：已取消`)
+  for (const s of run.skipped) lines.push(`${s.checkId}：跳过，${s.reason}`)
   return lines.length ? lines.join('\n') : '没有可执行的自动检查。'
 }

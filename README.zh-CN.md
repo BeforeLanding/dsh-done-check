@@ -13,6 +13,26 @@
 > - 确认清单不等于授权执行其中的命令。检查命令由当前 DSH 组合的 shell 执行器运行；`bash-local`/`pwsh-local` 不做任何隔离，需要隔离请组合对应的 sandbox 执行器。
 > - `watch` 是你声明的范围，不是自动分析出的依赖关系。
 
+## 演示
+
+以下截图来自真实的 DSH Web 会话（DSH 0.1.5，示例仓库里有一个 CSV 导出函数）。
+
+**1. 约定的检查全部通过**：`/done-check`
+
+![三项检查全部通过](https://raw.githubusercontent.com/BeforeLanding/dsh-done-check/main/docs/images/01-status-passed.png)
+
+**2. 代码改了，旧结果随之过期**：同时列出变化的文件
+
+![src/export.mjs 改动后三项都显示已过期](https://raw.githubusercontent.com/BeforeLanding/dsh-done-check/main/docs/images/02-status-stale.png)
+
+**3. 重新执行，抓住回归**：`/done-check run`；人工项在你重新确认之前保持"已过期"
+
+![export-tests 失败（退出码 1），syntax 仍然通过](https://raw.githubusercontent.com/BeforeLanding/dsh-done-check/main/docs/images/03-run-failed.png)
+
+**4. 结论背后的证据**：`/done-check show export-tests`
+
+![命令、退出码、沙箱执行器、指纹、日志路径和 stderr 末尾](https://raw.githubusercontent.com/BeforeLanding/dsh-done-check/main/docs/images/04-show-evidence.png)
+
 ## 状态
 
 v0.1.0，早期版本。并在真实的 DSH Web 宿主（0.1.5-rc.1 和 0.2.1-rc.5）上走通了全流程，检查由真实的 `pwsh` 工具在沙箱中执行。支持的 DSH 版本：`>=0.1.5-rc.1 <0.3.0`。设计见 [docs/DESIGN.md](https://github.com/BeforeLanding/dsh-done-check/blob/main/docs/DESIGN.md)。

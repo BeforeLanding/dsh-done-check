@@ -1,5 +1,9 @@
 # Changelog
 
+## Unreleased
+
+- `/done-check` command output is now plain text laid out per check, instead of a Markdown table. DSH web shows command output as preformatted text, and its font does not give CJK characters an exact double width, so only the ASCII check id is padded. `show` evidence and run summaries are plain text too. Agent tool output stays Markdown.
+
 ## 0.1.0 — 2026-11-04
 
 First release.

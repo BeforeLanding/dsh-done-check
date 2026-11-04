@@ -17,7 +17,7 @@ import { fingerprintFor, snapshotWorkspace, watchCoverageError } from '../core/f
 import { STATE_LABELS, type Report } from '../core/status.ts'
 import { DoneCheckError, type ServiceEnv, confirm, decide, loadChecklist, report, runChecks } from '../service.ts'
 import { StateStore } from '../store/state.ts'
-import { renderEvidence, renderReport, renderRunSummary } from './render.ts'
+import { renderEvidence, renderReport, renderReportText, renderRunSummary } from './render.ts'
 import { type ToolsLike, toolExec } from './shell.ts'
 
 export const name = 'dsh-done-check'
@@ -171,7 +171,7 @@ export function apply(ctx: Context): void {
       try {
         const env = await envFor(inv.agent)
         const { sub, args, rest } = parseCommandInput(inv.rawInput)
-        const table = async () => renderReport(await report(env), await loadChecklist(env.root))
+        const table = async () => renderReportText(await report(env), await loadChecklist(env.root))
         switch (sub) {
           case 'status':
             return { kind: 'success', text: await table() }

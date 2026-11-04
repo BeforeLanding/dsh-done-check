@@ -13,6 +13,26 @@ Executable acceptance checklists for [DeepSeek Harness](https://github.com/deeps
 > - Confirming a checklist does not authorize running its commands. Checks run on the shell executor of the current DSH composition; `bash-local` / `pwsh-local` provide no isolation, so compose the matching sandbox executor if you need it.
 > - `watch` is a scope you declare, not a dependency graph inferred for you.
 
+## Demo
+
+Screenshots from a real DSH web session (DSH 0.1.5, demo repo with a CSV export function). Status text is Chinese for now.
+
+**1. All agreed checks pass** — `/done-check`
+
+![All three checks pass](https://raw.githubusercontent.com/BeforeLanding/dsh-done-check/main/docs/images/01-status-passed.png)
+
+**2. The code changes, so the old results go stale** — the changed file is named
+
+![All three checks are stale after src/export.mjs changed](https://raw.githubusercontent.com/BeforeLanding/dsh-done-check/main/docs/images/02-status-stale.png)
+
+**3. Re-running catches the regression** — `/done-check run`; the manual check stays stale until you re-confirm it
+
+![export-tests fails with exit code 1, syntax still passes](https://raw.githubusercontent.com/BeforeLanding/dsh-done-check/main/docs/images/03-run-failed.png)
+
+**4. The evidence behind a result** — `/done-check show export-tests`
+
+![Command, exit code, sandboxed executor, fingerprint, log path and stderr tail](https://raw.githubusercontent.com/BeforeLanding/dsh-done-check/main/docs/images/04-show-evidence.png)
+
 ## Status
 
 v0.1.0, an early release. The full flow has been run on real DSH web hosts (0.1.5-rc.1 and 0.2.1-rc.5), with checks executed by the real `pwsh` tool inside its sandbox. Supported DSH: `>=0.1.5-rc.1 <0.3.0`. Design: [docs/DESIGN.md](https://github.com/BeforeLanding/dsh-done-check/blob/main/docs/DESIGN.md) (in Chinese). Status messages are currently in Chinese only.
