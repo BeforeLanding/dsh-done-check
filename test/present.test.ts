@@ -5,7 +5,7 @@
  */
 import assert from 'node:assert/strict'
 import { afterEach, describe, it } from 'node:test'
-import { itemsOf, notRunReasons, problemItems, renderAll, renderDetails, renderPreview, renderSummary, verdictOf } from '../src/plugin/present.ts'
+import { confirmedHeadline, itemsOf, notRunReasons, problemItems, renderAll, renderDetails, renderPreview, renderSummary, verdictOf } from '../src/plugin/present.ts'
 import { NotExecutedError, confirm, decide, previewDigest, runChecks, view } from '../src/service.ts'
 import { cleanupAll, fakeExec, makeRepo, outcome, signal } from './helpers.ts'
 
@@ -95,7 +95,7 @@ describe('scenario A: preview before confirming', () => {
     const repo = await confirmedAndPassed()
     repo.write('done-check.yaml', YAML.replace(/ {2}- id: escape-tests[\s\S]*?(?= {2}- id: zh)/, ''))
     const text = renderSummary(await view(repo.env))
-    assert.match(text, /已删除的检查\n {2}escape-tests（上次通过）/)
+    assert.match(text, /已删除的检查\n {2}含逗号和换行的数据能正确导出（上次通过）/)
   })
 })
 
@@ -147,6 +147,7 @@ describe('scenario D: a check found a problem', () => {
       '   测试报告：toCsv mismatch',
       '✅ 含逗号和换行的数据能正确导出',
       '👤 中文文件名可以正常下载',
+      '   怎么验证：在浏览器里导出一个名为“报表”的文件，确认文件名没有乱码',
       '   需要你重新确认（代码改过）',
       '',
       '下一步：让 Agent 排查失败的检查，修复后输入 /done-check 重新验证。',
@@ -181,7 +182,6 @@ describe('scenario D: a check found a problem', () => {
       '   结果    退出码 1，用时 T，HH:MM',
       '   代码    与检查时一致',
       '   stderr（末尾）',
-      "      (node:9) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.",
       '      toCsv mismatch',
       '   stdout（末尾）',
       '      ok',
@@ -207,7 +207,7 @@ describe('scenario E: a check could not run', () => {
     const repo = await confirmedAndPassed()
     repo.write('src/export.mjs', 'changed\n')
     const denied = async (req: { command: string }) => {
-      if (req.command.includes('escape')) throw new NotExecutedError('pwsh 工具拒绝或未能执行：policy: no')
+      if (req.command.includes('escape')) throw new NotExecutedError('pwsh 工具未能执行：policy: no', 'denied', 'policy: no')
       return outcome()
     }
     const run = await runChecks(repo.env, denied, { signal: signal() })
@@ -220,6 +220,7 @@ describe('scenario E: a check could not run', () => {
       '   原因：命令被权限设置拒绝，没有执行',
       '   这不是检查失败，也不表示功能测过了。',
       '👤 中文文件名可以正常下载',
+      '   怎么验证：在浏览器里导出一个名为“报表”的文件，确认文件名没有乱码',
       '   需要你重新确认（代码改过）',
       '',
       '下一步：放宽这条命令的权限后，输入 /done-check 重试',
@@ -254,7 +255,7 @@ describe('priority and single next step', () => {
     await confirm(repo.env)
     await runChecks(repo.env, fakeExec(), { signal: signal() })
     const text = renderSummary(await view(repo.env))
-    assert.match(text.split('\n')[0]!, /^👤 2 项等你确认$/)
+    assert.match(text.split('\n')[0]!, /^👤 CSV 导出：2 项已通过，2 项等你确认$/)
     assert.match(text, /👤 3\. 中文文件名可以正常下载\n {3}怎么验证：.+\n {3}等你确认/)
     assert.match(text, /👤 4\. 第二个人工项/)
     assert.match(text, /下一步：亲自验证后输入 \/done-check ok <序号>/)
@@ -274,5 +275,132 @@ describe('preview digest', () => {
     const before = previewDigest((await view(repo.env)).checklist)
     repo.write('done-check.yaml', YAML.replace('确认文件名没有乱码', '确认文件名正确'))
     assert.notEqual(previewDigest((await view(repo.env)).checklist), before)
+  })
+})
+
+describe('why a command did not run (real-host findings)', () => {
+  const sandboxFail = async () => { throw new NotExecutedError('pwsh 工具未能执行：SetNamedSecurityInfoW failed: Win32 error 5', 'sandbox', 'SetNamedSecurityInfoW failed: Win32 error 5') }
+
+  it('names the real cause: a sandbox failure is not "denied by permission settings"', async () => {
+    const repo = newRepo()
+    await confirm(repo.env)
+    const run = await runChecks(repo.env, sandboxFail, { signal: signal() })
+    const text = renderSummary(await view(repo.env), { notRun: notRunReasons(run) })
+    assert.match(text, /原因：沙箱运行失败，命令没有执行/)
+    assert.doesNotMatch(text, /权限设置拒绝/)
+    assert.match(text, /下一步：处理沙箱问题/)
+  })
+
+  it('the reason survives to the next command, and is not evidence', async () => {
+    const repo = newRepo()
+    await confirm(repo.env)
+    await runChecks(repo.env, sandboxFail, { signal: signal() })
+    const v = await view(repo.env)
+    const item = itemsOf(v)[0]!
+    assert.equal(item.shown, 'cannot_run', 'a later command still says it could not run')
+    assert.equal(item.status.state, 'not_run', 'the derived status is untouched: no result was ever recorded')
+    assert.match(renderDetails(v, [item], 'run'), /没能运行：沙箱运行失败/)
+    assert.equal((await repo.env.store.load(repo.root)).ok && Object.keys((await repo.env.store.load(repo.root) as any).state.latest).length, 0, 'no run record')
+  })
+
+  it('goes away after the next completed run, and does not outlive a changed definition', async () => {
+    const repo = newRepo()
+    await confirm(repo.env)
+    await runChecks(repo.env, sandboxFail, { signal: signal() })
+    await runChecks(repo.env, fakeExec(), { signal: signal() })
+    assert.notEqual(itemsOf(await view(repo.env))[0]!.shown, 'cannot_run')
+
+    const other = newRepo()
+    await confirm(other.env)
+    await runChecks(other.env, sandboxFail, { signal: signal() })
+    other.write('done-check.yaml', YAML.replace('node test/export.test.mjs', 'node test/other.mjs'))
+    assert.equal((await view(other.env)).notExecuted['export-tests'], undefined)
+  })
+
+  it('classifies the shell tool\'s refusals by what they say', async () => {
+    const { classifyRefusal } = await import('../src/plugin/shell.ts')
+    assert.equal(classifyRefusal('policy: no writes'), 'denied')
+    assert.equal(classifyRefusal('user rejected the approval'), 'denied')
+    assert.equal(classifyRefusal('SetNamedSecurityInfoW returned Win32 error 5'), 'sandbox')
+    assert.equal(classifyRefusal('something unexpected'), 'other')
+  })
+
+  it('tech details carry the raw tool message so a sandbox failure can be troubleshot', async () => {
+    const repo = newRepo()
+    await confirm(repo.env)
+    await runChecks(repo.env, sandboxFail, { signal: signal() })
+    const v = await view(repo.env)
+    const item = itemsOf(v)[0]!
+    assert.doesNotMatch(renderDetails(v, [item], 'run'), /SetNamedSecurityInfoW/, 'the default and run layers stay plain')
+    assert.match(renderDetails(v, [item], 'tech'), /工具原始信息 {2}SetNamedSecurityInfoW failed: Win32 error 5[\s\S]*原因类别 {6}sandbox/)
+  })
+
+  it('shows an unrecognized reason as it is, instead of calling it a permission denial', async () => {
+    const repo = newRepo()
+    await confirm(repo.env)
+    const run = await runChecks(repo.env, async () => { throw new NotExecutedError('x', 'other', 'tool exploded') }, { signal: signal() })
+    assert.match(renderSummary(await view(repo.env), { notRun: notRunReasons(run) }), /原因：命令没有执行：tool exploded/)
+  })
+})
+
+describe('real-host copy findings', () => {
+  it('a run of an earlier definition is not shown as this check\'s run', async () => {
+    const repo = await confirmedAndPassed()
+    repo.write('done-check.yaml', YAML.replace('node test/export.test.mjs', 'node test/export2.test.mjs'))
+    await confirm(repo.env)
+    const v = await view(repo.env)
+    const item = itemsOf(v)[0]!
+    assert.equal(item.shown, 'not_checked')
+    const text = renderDetails(v, [item], 'run')
+    assert.match(text, /属于旧定义，不代表当前清单/)
+    assert.doesNotMatch(text, /node test\/export\.test\.mjs|退出码/)
+  })
+
+  it('when only a manual check is stale, there is nothing to "re-check"', async () => {
+    const repo = await confirmedAndPassed()
+    repo.write('src/export.mjs', 'changed\n')
+    repo.write('done-check.yaml', YAML.replaceAll('watch: ["src/**", "test/**"]', 'watch: ["test/**"]'))
+    await confirm(repo.env)
+    const text = renderSummary(await view(repo.env))
+    assert.match(text, /下一步：输入 \/done-check 开始检查$/m)
+  })
+
+  it('checks that never ran are started, not "re-checked"', async () => {
+    const repo = newRepo()
+    await confirm(repo.env)
+    const text = renderSummary(await view(repo.env))
+    assert.match(text, /下一步：输入 \/done-check 开始检查$/m)
+    assert.doesNotMatch(text, /变化的文件/)
+  })
+
+  it('names a deleted check, falling back to its id only for confirmations without names', async () => {
+    const repo = await confirmedAndPassed()
+    const v = await view(repo.env)
+    assert.equal(v.confirmedNames['escape-tests'], '含逗号和换行的数据能正确导出')
+  })
+
+  it('says it was confirmed, with what is left; and counts what already passed', async () => {
+    const repo = newRepo()
+    await confirm(repo.env)
+    assert.equal(confirmedHeadline(await view(repo.env)), '已确认 CSV 导出的 3 项检查，2 项待执行，1 项等你确认')
+    await runChecks(repo.env, fakeExec(), { signal: signal() })
+    assert.equal(verdictOf(await view(repo.env)).headline, '👤 CSV 导出：2 项已通过，1 项等你确认')
+  })
+
+  it('the preview\'s next step has no parenthetical about changes already shown', async () => {
+    const repo = await confirmedAndPassed()
+    repo.write('done-check.yaml', YAML.replace('node test/export.test.mjs', 'node test/export2.test.mjs'))
+    assert.match(renderSummary(await view(repo.env)), /下一步：确认无误后输入 \/done-check 确认$/)
+  })
+
+  it('hides PowerShell startup noise from the output tails', async () => {
+    const repo = newRepo()
+    await confirm(repo.env)
+    const noisy = 'CannotCreateTypeConstrainedLanguage\n�� garbled\ntoCsv mismatch\n'
+    await runChecks(repo.env, fakeExec({ 'node test/export.test.mjs': { exitCode: 1, stderr: noisy } }), { signal: signal() })
+    const v = await view(repo.env)
+    const text = renderDetails(v, [itemsOf(v)[0]!], 'run')
+    assert.match(text, /toCsv mismatch/)
+    assert.doesNotMatch(text, /ConstrainedLanguage|�/)
   })
 })

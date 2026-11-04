@@ -120,7 +120,7 @@ describe('plugin on the real DSH runtimes', () => {
     assert.equal(run.isError, false)
     assert.deepEqual(run.value.ran.map((r: any) => [r.id, r.outcome]), [['tests', 'passed'], ['lint', 'failed']])
     assert.equal(run.value.skipped[0].id, 'forbidden')
-    assert.match(run.value.skipped[0].reason, /未执行：pwsh 工具拒绝或未能执行：.*policy: no writes/)
+    assert.match(run.value.skipped[0].reason, /未执行：pwsh 工具未能执行：.*policy: no writes/)
     assert.ok(shellCalls.every((c) => c.hasParent), 'agent-path commands are nested dispatches under the done_check_run call')
     assert.ok(shellCalls.every((c) => !c.command.includes('pwned')), 'the denied command never reached the shell tool')
     assert.equal(run.value.verdict, '❌ 新增 CSV 导出功能还有 1 项检查未通过')
@@ -140,8 +140,10 @@ describe('plugin on the real DSH runtimes', () => {
     repo.write('src/export.ts', 'export const csv = 2\n')
     const stale = await callTool('done_check_status', {}, agent)
     assert.deepEqual(stale.value.checks.map((c: any) => c.state), ['stale', 'stale', 'not_run', 'stale'])
-    assert.equal(stale.value.verdict, '🔄 代码已更新，3 项需要重新检查')
-    assert.match(stale.value.markdown, /2 项可以自动重验，1 项需要你手动复核/)
+    // The refused command's reason is remembered across commands, and outranks "re-check".
+    assert.equal(stale.value.verdict, '⚠️ 1 项检查没能运行，结果未知')
+    assert.match(stale.value.markdown, /原因：命令被权限设置拒绝，没有执行/)
+    assert.equal(stale.value.checks[2].state, 'not_run', 'the derived state is unchanged: no result exists')
 
     const userRun = await command(agent, ' run tests')
     assert.equal(userRun.kind, 'success')

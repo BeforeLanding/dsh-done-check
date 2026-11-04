@@ -10,6 +10,20 @@ export interface ChecklistConfirmation {
   readonly structureHash: string
   readonly definitions: Readonly<Record<string, string>>
   readonly confirmedAt: string
+  /** Display only: check names at confirmation time, so a later-deleted check can be shown by name. Absent on older confirmations. */
+  readonly names?: Readonly<Record<string, string>>
+}
+
+/** Why a command never started. Display only; it never becomes evidence. */
+export type NotExecutedKind = 'denied' | 'sandbox' | 'no_shell' | 'other'
+
+/** The last attempt to run a check that never started. An attempt, not a result: it never replaces `latest`. */
+export interface NotExecutedAttempt {
+  readonly kind: NotExecutedKind
+  readonly detail: string
+  /** The attempt only describes the definition it was made for. */
+  readonly definitionHash: string
+  readonly at: string
 }
 
 /** Why a run cannot be trusted no matter what the workspace looks like later. */

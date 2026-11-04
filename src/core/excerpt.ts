@@ -12,6 +12,9 @@ const NOISE = [
   /Warning: The 'NO_COLOR' env is ignored/,
   /ExperimentalWarning/,
   /^npm warn/i,
+  // PowerShell startup chatter seen in locked-down sessions, including mis-decoded (GBK as UTF-8) text.
+  /ConstrainedLanguage/,
+  /\uFFFD/,
 ]
 const MAX_LINES = 3
 const MAX_LINE_CHARS = 200
@@ -20,7 +23,7 @@ export function stripAnsi(text: string): string {
   return text.replaceAll(ANSI, '').replaceAll('\r\n', '\n').replaceAll('\r', '\n')
 }
 
-function meaningful(text: string): string[] {
+export function meaningful(text: string): string[] {
   return stripAnsi(text)
     .split('\n')
     .map((l) => l.trimEnd())

@@ -6,6 +6,7 @@
  * fallback to `ctx.shell`: if the dispatch is refused, the check did not run.
  */
 import { randomBytes } from 'node:crypto'
+import type { NotExecutedKind } from '../core/status.ts'
 import type { Exec, ExecOutcome } from '../service.ts'
 import { NotExecutedError } from '../service.ts'
 
@@ -80,18 +81,28 @@ export function toolExec(tools: ToolsLike, origin: DispatchOrigin, platform: Nod
         if (code && ABORT_CODES.has(code)) {
           return { exitCode: null, signal: null, timedOut: false, aborted: true, infraError: null, stdout: '', stderr: '', shell: tool }
         }
-        throw new NotExecutedError(`${tool} 工具拒绝或未能执行：${res.error.message}`)
+        throw new NotExecutedError(`${tool} 工具未能执行：${res.error.message}`, classifyRefusal(res.error.message), res.error.message)
       }
       return toOutcome(tool, res.value)
     }
-    throw new NotExecutedError('当前 Agent 没有可用的 pwsh 或 bash 工具')
+    throw new NotExecutedError('当前 Agent 没有可用的 pwsh 或 bash 工具', 'no_shell')
   }
 }
 
+const SANDBOX_SIGNS = /sandbox|沙箱|SetNamedSecurityInfo|Win32|ACL/i
+const DENIAL_SIGNS = /den(y|ied)|refus|reject|forbid|not allowed|permission|approval|policy|拒绝|禁止|不允许|未批准|权限/i
+
+/** Best-effort reading of why the shell tool refused. Unrecognized messages stay 'other' and are shown as they are. */
+export function classifyRefusal(message: string): NotExecutedKind {
+  if (SANDBOX_SIGNS.test(message)) return 'sandbox'
+  if (DENIAL_SIGNS.test(message)) return 'denied'
+  return 'other'
+}
+
 function toOutcome(tool: string, value: unknown): ExecOutcome {
-  if (!isForeground(value)) throw new NotExecutedError(`${tool} 工具没有返回前台执行结果`)
+  if (!isForeground(value)) throw new NotExecutedError(`${tool} 工具没有返回前台执行结果`, 'other')
   const v = value
-  if (v.sandbox?.runnerFailed) throw new NotExecutedError(`沙箱运行器在 ${v.sandbox.mode} 模式下失败，命令没有运行`)
+  if (v.sandbox?.runnerFailed) throw new NotExecutedError(`沙箱运行器在 ${v.sandbox.mode} 模式下失败，命令没有运行`, 'sandbox', `${v.sandbox.mode} 模式下运行器失败`)
   return {
     exitCode: v.exitCode,
     signal: v.signal,

@@ -13,12 +13,16 @@
  * their rendered width is not reliable.
  */
 import type { CheckDefinition } from '../core/checklist.ts'
-import { stripAnsi } from '../core/excerpt.ts'
-import type { AutoRun, CheckStatus, CompletedRun, CorruptRecord } from '../core/status.ts'
+import { meaningful } from '../core/excerpt.ts'
+import { definitionHash } from '../core/checklist.ts'
+import type { AutoRun, CheckStatus, CompletedRun, CorruptRecord, NotExecutedAttempt } from '../core/status.ts'
 import type { RunSummary, View } from '../service.ts'
 
-/** Why checks that were attempted this time never ran (id → user-facing reason). */
-export type NotRunReasons = ReadonlyMap<string, string>
+/** Why a command never started (kind and the tool's own message). */
+export type NotRunInfo = Pick<NotExecutedAttempt, 'kind' | 'detail'>
+
+/** Attempts from this very run, layered over the ones the store remembers. */
+export type NotRunReasons = ReadonlyMap<string, NotRunInfo>
 
 export type Tier = 'confirm' | 'failed' | 'cannot_run' | 'recheck' | 'awaiting' | 'passed'
 
@@ -42,30 +46,48 @@ export interface Item {
   readonly status: CheckStatus
   readonly record: CompletedRun | CorruptRecord | undefined
   readonly shown: Shown
+  /** Why the command never started, while that is still the latest word on this check. */
+  readonly notRun: NotRunInfo | null
   readonly notRunReason: string | null
+  /** The latest recorded run belongs to an earlier definition of this check; it says nothing about the current one. */
+  readonly oldRun: boolean
 }
 
 const BOUNDARY = '这表示约定的检查都通过了，不代表需求里的每一点都被检查到。'
 const NO_EXCERPT = '测试未给出错误信息，见运行详情'
 
-export function describeNotExecuted(reason: string): string {
-  const r = reason.replace(/^未执行：/, '')
-  if (/拒绝/.test(r)) return '命令被权限设置拒绝，没有执行'
-  if (/没有可用的/.test(r)) return '当前没有可用的 shell 工具，命令没有执行'
-  if (/沙箱/.test(r)) return '沙箱运行失败，命令没有执行'
-  return `命令没有执行（${r}）`
+export function describeNotRun(info: NotRunInfo): string {
+  switch (info.kind) {
+    case 'denied': return '命令被权限设置拒绝，没有执行'
+    case 'sandbox': return '沙箱运行失败，命令没有执行'
+    case 'no_shell': return '当前没有可用的 shell 工具，命令没有执行'
+    case 'other': return `命令没有执行：${info.detail.length > 160 ? `${info.detail.slice(0, 160)}…` : info.detail}`
+  }
 }
 
-export function notRunReasons(run: RunSummary): Map<string, string> {
-  return new Map(run.skipped.filter((s) => s.kind === 'not_executed').map((s) => [s.checkId, describeNotExecuted(s.reason)]))
+const NOT_RUN_NEXT: Record<NotRunInfo['kind'], string> = {
+  denied: '放宽这条命令的权限后，输入 /done-check 重试',
+  sandbox: '处理沙箱问题（或换一种沙箱模式）后，输入 /done-check 重试',
+  no_shell: '确保会话里有 pwsh 或 bash 工具后，输入 /done-check 重试',
+  other: '排查上面的原因后，输入 /done-check 重试',
+}
+
+export function notRunReasons(run: RunSummary): Map<string, NotRunInfo> {
+  return new Map(run.skipped.flatMap((s) => (s.kind === 'not_executed' && s.notExecuted ? [[s.checkId, s.notExecuted] as const] : [])))
 }
 
 export function itemsOf(view: View, notRun: NotRunReasons = new Map()): Item[] {
   return view.checklist.checks.map((check, i) => {
     const status = view.report.checks.find((s) => s.checkId === check.id)!
-    const reason = notRun.get(check.id) ?? null
     const retriable = status.state === 'not_run' || status.state === 'stale' || status.state === 'unstable' || status.state === 'error'
-    return { n: i + 1, check, status, record: view.results[check.id], notRunReason: reason && retriable ? reason : null, shown: shownOf(status.state, reason !== null && retriable) }
+    const attempt = notRun.get(check.id) ?? view.notExecuted[check.id] ?? null
+    const info = attempt && retriable ? attempt : null
+    const latest = view.results[check.id]
+    const oldRun = !!latest && !('corrupt' in latest) && latest.definitionHash !== definitionHash(check)
+    return {
+      n: i + 1, check, status, record: oldRun ? undefined : latest, oldRun,
+      notRun: info, notRunReason: info ? describeNotRun(info) : null, shown: shownOf(status.state, info !== null),
+    }
   })
 }
 
@@ -93,6 +115,16 @@ export function pendingManual(items: readonly Item[]): Item[] {
   return items.filter((i) => i.check.manual && (i.shown === 'awaiting' || i.shown === 'stale'))
 }
 
+/** First line right after the user confirms: says it was confirmed, and what is left to do. */
+export function confirmedHeadline(view: View): string {
+  const items = itemsOf(view)
+  const toRun = items.filter((i) => !i.check.manual && i.shown === 'not_checked').length
+  const toConfirm = count(items, 'awaiting')
+  const parts = [toRun ? `${toRun} 项待执行` : '', toConfirm ? `${toConfirm} 项等你确认` : ''].filter(Boolean)
+  const task = view.checklist.task
+  return `已确认${/^[A-Za-z0-9]/.test(task) ? ' ' : ''}${task}的 ${items.length} 项检查${parts.length ? `，${parts.join('，')}` : ''}`
+}
+
 export function needsConfirmation(view: View): boolean {
   return view.report.structure !== 'confirmed' || view.report.checks.some((s) => s.state === 'definition_changed' || s.state === 'unconfirmed')
 }
@@ -115,7 +147,7 @@ export function verdictOf(view: View, notRun: NotRunReasons = new Map()): Verdic
     if (rep.structure === 'unconfirmed') return { tier: 'confirm', headline: `${task}的验收清单等你确认（${total} 项）`, nextStep: '确认无误后输入 /done-check 确认' }
     if (rep.structure === 'changed') return { tier: 'confirm', headline: `${task}的验收清单有改动，等你重新确认（${total} 项）`, nextStep: '确认无误后输入 /done-check 确认' }
     const k = count(items, 'changed', 'unconfirmed')
-    return { tier: 'confirm', headline: `✏️ ${k} 项检查被修改过，需要你重新确认`, nextStep: '确认无误后输入 /done-check 确认（会先展示改动）' }
+    return { tier: 'confirm', headline: `✏️ ${k} 项检查被修改过，需要你重新确认`, nextStep: '确认无误后输入 /done-check 确认' }
   }
 
   const failed = count(items, 'failed')
@@ -128,7 +160,8 @@ export function verdictOf(view: View, notRun: NotRunReasons = new Map()): Verdic
   const unknown = count(items, 'unknown')
   if (cannot + errored + unknown) {
     if (cannot + errored) {
-      const next = cannot ? '放宽这条命令的权限后，输入 /done-check 重试' : '排查执行环境或超时设置后，输入 /done-check 重新检查'
+      const first = items.find((i) => i.shown === 'cannot_run')?.notRun
+      const next = first ? NOT_RUN_NEXT[first.kind] : '排查执行环境或超时设置后，输入 /done-check 重新检查'
       return { tier: 'cannot_run', headline: `⚠️ ${cannot + errored} 项检查没能运行，结果未知`, nextStep: next }
     }
     return { tier: 'cannot_run', headline: `❓ ${unknown} 项检查无法判定`, nextStep: '按提示修复后，输入 /done-check 重新检查' }
@@ -141,8 +174,9 @@ export function verdictOf(view: View, notRun: NotRunReasons = new Map()): Verdic
   if (stale + unstable + notChecked + running) {
     const auto = items.some((i) => !i.check.manual && ['stale', 'unstable', 'not_checked'].includes(i.shown))
     const manualOnly = pendingManual(items)
+    const moved = items.some((i) => !i.check.manual && (i.shown === 'stale' || i.shown === 'unstable'))
     const nextStep = auto
-      ? '输入 /done-check 重新检查（变化的文件见 /done-check 详情）'
+      ? moved ? '输入 /done-check 重新检查（变化的文件见 /done-check 详情）' : '输入 /done-check 开始检查'
       : running && !manualOnly.length ? '等待检查结束' : manualNext(manualOnly)
     const headline = stale
       ? `🔄 代码已更新，${stale + unstable} 项需要重新检查`
@@ -152,7 +186,11 @@ export function verdictOf(view: View, notRun: NotRunReasons = new Map()): Verdic
   }
 
   const awaiting = count(items, 'awaiting')
-  if (awaiting) return { tier: 'awaiting', headline: `👤 ${awaiting} 项等你确认`, nextStep: manualNext(pendingManual(items)) }
+  if (awaiting) {
+    const passed = count(items, 'passed')
+    const headline = passed ? `👤 ${task}：${passed} 项已通过，${awaiting} 项等你确认` : `👤 ${awaiting} 项等你确认`
+    return { tier: 'awaiting', headline, nextStep: manualNext(pendingManual(items)) }
+  }
 
   return { tier: 'passed', headline: `✅ ${task}的 ${total} 项检查全部通过`, nextStep: null }
 }
@@ -186,7 +224,7 @@ function summaryLines(item: Item, withNumber: boolean): string[] {
       return [`⚠️ ${label}`, `   没能跑完：${rec?.timedOut ? '超时' : '执行环境出错'}。这不是检查失败，结果未知。`]
     }
     case 'unknown': return [`❓ ${label}`, `   无法判定：${item.status.reason ?? '验收记录无法读取'}`]
-    case 'stale': return manual ? [`👤 ${label}`, '   需要你重新确认（代码改过）'] : [`🔄 ${label}`, '   代码已更新，需要重新检查']
+    case 'stale': return manual ? [`👤 ${label}`, ...(item.check.how ? [`   怎么验证：${item.check.how}`] : []), '   需要你重新确认（代码改过）'] : [`🔄 ${label}`, '   代码已更新，需要重新检查']
     case 'unstable': return [`🔄 ${label}`, '   检查时代码正在变化，结果不可信']
     case 'not_checked': return [`⏳ ${label}`, '   还没检查']
     case 'running': return [`⏳ ${label}`, '   正在检查']
@@ -204,6 +242,8 @@ function quoted(lines: readonly string[], isQuote: boolean): string[] {
 
 export interface SummaryOptions {
   readonly notRun?: NotRunReasons
+  /** Replaces the first line, e.g. to say a checklist was just confirmed. */
+  readonly headline?: string
   /** Extra lines directly under the headline, e.g. "已记录：…". */
   readonly preface?: readonly string[]
 }
@@ -214,7 +254,7 @@ export function renderSummary(view: View, opts: SummaryOptions = {}): string {
   if (needsConfirmation(view)) return renderPreview(view, opts)
   const verdict = verdictOf(view, notRun)
   const items = itemsOf(view, notRun)
-  const out: string[] = [verdict.headline]
+  const out: string[] = [opts.headline ?? verdict.headline]
   if (opts.preface?.length) out.push(...opts.preface)
   out.push('')
 
@@ -272,7 +312,7 @@ export function renderPreview(view: View, opts: SummaryOptions = {}): string {
   }
   if (reconfirm && rep.removed.length) {
     out.push('已删除的检查')
-    for (const r of rep.removed) out.push(`  ${r.checkId}${r.lastOutcome ? `（上次${{ passed: '通过', failed: '未通过', error: '没能跑完' }[r.lastOutcome]}）` : ''}`)
+    for (const r of rep.removed) out.push(`  ${view.confirmedNames[r.checkId] ?? r.checkId}${r.lastOutcome ? `（上次${{ passed: '通过', failed: '未通过', error: '没能跑完' }[r.lastOutcome]}）` : ''}`)
   }
   if (reconfirm && rep.taskChanged) out.push('任务描述有改动。')
   out.push('')
@@ -325,9 +365,13 @@ function itemDetail(view: View, item: Item, level: DetailLevel, withHeader: bool
   if (item.shown === 'cannot_run') out.push(`   没能运行：${item.notRunReason}`, '   这不是检查失败，也不表示功能测过了。')
   if (item.shown === 'unknown') out.push(`   无法判定：${item.status.reason ?? '验收记录无法读取'}`)
   if (item.status.reason && (item.shown === 'unstable' || item.shown === 'error')) out.push(`   ${item.status.reason}`)
+  if (level === 'tech' && item.notRun) {
+    out.push('', '技术详情', `   工具原始信息  ${item.notRun.detail}`, `   原因类别      ${item.notRun.kind}`)
+  }
   const rec = item.record
   if (!rec) {
-    if (item.shown !== 'cannot_run') out.push('   还没有运行记录。')
+    if (item.oldRun) out.push('   还没有针对当前定义的运行记录（之前的运行属于旧定义，不代表当前清单）。')
+    else if (item.shown !== 'cannot_run') out.push('   还没有运行记录。')
     return out
   }
   if ('corrupt' in rec) return [...out, `   记录无法读取：${rec.corrupt}`]
@@ -353,7 +397,7 @@ function itemDetail(view: View, item: Item, level: DetailLevel, withHeader: bool
   out.push(`   结果    ${exit}${rec.timedOut ? '，超时' : ''}，${duration(rec.durationMs)}，${hhmm(rec.finishedAt)}`)
   out.push(`   代码    ${codeLine(item)}`)
   for (const [label, body] of [['stderr', rec.stderrTail], ['stdout', rec.stdoutTail]] as const) {
-    const lines = stripAnsi(body).split('\n').filter((l) => l.trim()).slice(-8)
+    const lines = meaningful(body).slice(-8)
     if (lines.length) out.push(`   ${label}（末尾）`, ...lines.map((l) => `      ${l}`))
   }
   if (level === 'tech') out.push('', ...techLines(rec))

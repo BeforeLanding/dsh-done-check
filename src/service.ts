@@ -10,7 +10,7 @@ import { canonicalJson, sha256 } from './core/hash.ts'
 import { CHECKLIST_FILE, type CheckDefinition, type Checklist, definitionHash, parseChecklist, structureHash } from './core/checklist.ts'
 import { type ListFiles, type WorkspaceSnapshot, fingerprintFor, gitListFiles, snapshotWorkspace, watchCoverageError } from './core/fingerprint.ts'
 import {
-  type AutoRun, type ChecklistConfirmation, type CompletedRun, type CorruptRecord, type ManualDecision, type RawRun, type Report,
+  type AutoRun, type ChecklistConfirmation, type NotExecutedAttempt, type NotExecutedKind, type CompletedRun, type CorruptRecord, type ManualDecision, type RawRun, type Report,
   STATE_LABELS, assessStability, classifyRun, deriveReport,
 } from './core/status.ts'
 import { failureExcerpt } from './core/excerpt.ts'
@@ -47,7 +47,15 @@ export class DoneCheckError extends Error {}
  * policy, no shell tool registered, PTC collapse, … No evidence exists, so
  * nothing is recorded and the previous result stays in place.
  */
-export class NotExecutedError extends Error {}
+export class NotExecutedError extends Error {
+  readonly kind: NotExecutedKind
+  readonly detail: string
+  constructor(message: string, kind: NotExecutedKind = 'other', detail: string = message) {
+    super(message)
+    this.kind = kind
+    this.detail = detail
+  }
+}
 
 export async function loadChecklist(root: string): Promise<Checklist> {
   let text: string
@@ -90,6 +98,7 @@ export async function confirm(env: ServiceEnv, expectedPreview?: string): Promis
   const confirmation: ChecklistConfirmation = {
     task: checklist.task,
     checkIds: checklist.checks.map((c) => c.id).sort(),
+    names: Object.fromEntries(checklist.checks.map((c) => [c.id, c.name])),
     structureHash: structureHash(checklist),
     definitions: Object.fromEntries(checklist.checks.map((c) => [c.id, definitionHash(c)])),
     confirmedAt: nowOf(env).toISOString(),
@@ -107,6 +116,10 @@ export interface View {
   readonly checklist: Checklist
   readonly report: Report
   readonly results: Readonly<Record<string, CompletedRun | CorruptRecord>>
+  /** Checks whose latest attempt never started (for the current definition), with why. */
+  readonly notExecuted: Readonly<Record<string, Pick<NotExecutedAttempt, 'kind' | 'detail'>>>
+  /** Names recorded at confirmation, so a deleted check can be shown by name. Empty for older confirmations. */
+  readonly confirmedNames: Readonly<Record<string, string>>
 }
 
 export async function view(env: ServiceEnv): Promise<View> {
@@ -118,7 +131,7 @@ export async function view(env: ServiceEnv): Promise<View> {
       checkId: c.id, state: 'unknown' as const, lastOutcome: null, changes: null, reason, lastAttemptCancelled: false,
     }))
     return {
-      checklist, results: {},
+      checklist, results: {}, notExecuted: {}, confirmedNames: {},
       report: { structure: 'unconfirmed', taskChanged: false, added: [], removed: [], checks, summary: `${checks.length} 项验收全部${STATE_LABELS.unknown}：${reason}` },
     }
   }
@@ -139,7 +152,12 @@ export async function view(env: ServiceEnv): Promise<View> {
     cancelled: new Set(Object.keys(state.cancelled)),
     now: nowOf(env),
   })
-  return { checklist, report: rep, results }
+  const notExecuted: Record<string, Pick<NotExecutedAttempt, 'kind' | 'detail'>> = {}
+  for (const c of checklist.checks) {
+    const a = state.notExecuted?.[c.id]
+    if (a && a.definitionHash === definitionHash(c)) notExecuted[c.id] = { kind: a.kind, detail: a.detail }
+  }
+  return { checklist, report: rep, results, notExecuted, confirmedNames: state.confirmation?.names ?? {} }
 }
 
 /**
@@ -164,6 +182,8 @@ export interface RunSkip {
   readonly checkId: string
   readonly kind: SkipKind
   readonly reason: string
+  /** For `not_executed`: why the command never started. */
+  readonly notExecuted?: { readonly kind: NotExecutedKind; readonly detail: string }
 }
 
 export interface RunSummary {
@@ -230,11 +250,12 @@ export async function runChecks(env: ServiceEnv, exec: Exec, opts: { ids?: reado
         out = await exec({ command: check.run ?? '', cwd: resolve(env.root, check.cwd), timeoutMs: check.timeout * 1000, signal: opts.signal })
       } catch (err) {
         if (err instanceof NotExecutedError) {
+          const attempt: NotExecutedAttempt = { kind: err.kind, detail: err.detail, definitionHash: hash, at: nowOf(env).toISOString() }
           await env.store.update(env.root, (s) => {
             const { [check.id]: _gone, ...active } = s.active
-            return { state: { ...s, active }, value: undefined }
+            return { state: { ...s, active, notExecuted: { ...s.notExecuted, [check.id]: attempt } }, value: undefined }
           })
-          skipped.push({ checkId: check.id, kind: 'not_executed', reason: `未执行：${err.message}` })
+          skipped.push({ checkId: check.id, kind: 'not_executed', reason: `未执行：${err.message}`, notExecuted: { kind: err.kind, detail: err.detail } })
           continue
         }
         out = { exitCode: null, signal: null, timedOut: false, aborted: opts.signal.aborted, infraError: (err as Error).message, stdout: '', stderr: '', shell: null }

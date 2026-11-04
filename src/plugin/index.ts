@@ -19,7 +19,7 @@ import {
 } from '../service.ts'
 import { StateStore } from '../store/state.ts'
 import {
-  type NotRunReasons, dueAutoChecks, draftWarnings, itemLabel, itemsOf, needsConfirmation, notRunReasons, pendingManual,
+  type NotRunReasons, confirmedHeadline, dueAutoChecks, draftWarnings, itemLabel, itemsOf, needsConfirmation, notRunReasons, pendingManual,
   problemItems, renderAll, renderDetails, renderSummary, resolveItem, runNote, verdictOf,
 } from './present.ts'
 import { type ToolsLike, toolExec } from './shell.ts'
@@ -252,7 +252,8 @@ export function apply(ctx: Context): void {
               return ok(summary(await view(env), env.root, { preface: ['清单在你预览之后又变了，请重新看一遍：'] }))
             }
             previews.delete(env.root)
-            return ok(renderSummary(await view(env), { preface: ['已确认。输入 /done-check 会执行已确认的命令，按你当前的权限设置执行。'] }))
+            const after = await view(env)
+            return ok(renderSummary(after, { headline: confirmedHeadline(after), preface: ['输入 /done-check 会执行已确认的命令，按你当前的权限设置执行。'] }))
           }
           case 'run': {
             const v = await view(env)
@@ -278,7 +279,7 @@ export function apply(ctx: Context): void {
             const { item } = target
             if (!item.check.manual) return fail(`第 ${item.n} 项「${item.check.name}」是自动检查，由 /done-check 执行，不能手动记录结论。`)
             await decide(env, item.check.id, sub === 'ok' ? 'passed' : 'failed', note)
-            return ok(summary(await view(env), env.root, { preface: [`已记录：「${item.check.name}」${sub === 'ok' ? '你确认通过' : '你标记为未通过'}`] }))
+            return ok(summary(await view(env), env.root, { preface: [`${sub === 'ok' ? '已记录你的确认' : '已记录你的结论'}：「${item.check.name}」${sub === 'ok' ? '通过' : '未通过'}`] }))
           }
           case 'details':
           case 'tech': {

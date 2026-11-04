@@ -2,7 +2,7 @@ import { randomBytes } from 'node:crypto'
 import { mkdir, readFile, realpath, rename, rm, stat, writeFile } from 'node:fs/promises'
 import { join } from 'node:path'
 import { sha256 } from '../core/hash.ts'
-import type { ActiveRun, ChecklistConfirmation, CompletedRun, CorruptRecord, LogRef, RunRecord } from '../core/status.ts'
+import type { ActiveRun, ChecklistConfirmation, NotExecutedAttempt, CompletedRun, CorruptRecord, LogRef, RunRecord } from '../core/status.ts'
 
 /** Bytes of stdout/stderr kept inline in a run record. */
 export const TAIL_BYTES = 8 * 1024
@@ -24,6 +24,8 @@ export interface ProjectState {
   /** Every kept run id per check, oldest first. */
   readonly history: Readonly<Record<string, readonly string[]>>
   readonly active: Readonly<Record<string, ActiveRun>>
+  /** Checks whose last attempt never started, until their next completed run. Absent in states written before v0.2. */
+  readonly notExecuted?: Readonly<Record<string, NotExecutedAttempt>>
 }
 
 export type LoadResult = { readonly ok: true; readonly state: ProjectState } | { readonly ok: false; readonly reason: string }
@@ -188,7 +190,8 @@ export function recordRun(state: ProjectState, record: RunRecord): ProjectState 
     return { ...state, active, history: { ...state.history, [id]: history }, cancelled: { ...state.cancelled, [id]: record.runId } }
   }
   const { [id]: _cleared, ...cancelled } = state.cancelled
-  return { ...state, active, cancelled, history: { ...state.history, [id]: history }, latest: { ...state.latest, [id]: record.runId } }
+  const { [id]: _attempt, ...notExecuted } = state.notExecuted ?? {}
+  return { ...state, active, cancelled, notExecuted, history: { ...state.history, [id]: history }, latest: { ...state.latest, [id]: record.runId } }
 }
 
 export function confirmState(state: ProjectState, confirmation: ChecklistConfirmation): ProjectState {
