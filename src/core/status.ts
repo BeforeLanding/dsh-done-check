@@ -53,6 +53,13 @@ export interface AutoRun extends RunBase {
   readonly stderrTail: string
   readonly log: LogRef | null
   readonly unstable: Instability | null
+  /**
+   * Up to three lines quoted verbatim from the check's own output (colour
+   * codes and known runtime warnings removed). Display only: it never
+   * affects the outcome, and the full output stays in the log. Absent on
+   * records written before v0.2.
+   */
+  readonly failureExcerpt?: readonly string[]
 }
 
 /** A run the user cancelled: recorded as an attempt, never as a result. */

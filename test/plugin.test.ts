@@ -105,8 +105,16 @@ describe('plugin on the real DSH runtimes', () => {
     assert.equal(early.value.ran.length, 0, 'nothing runs before the user confirms')
     assert.equal(shellCalls.length, 0)
 
-    const confirmed = await command(agent, ' confirm')
+    const blind = await command(agent, ' 确认')
+    assert.match(blind.text, /你还没看过这份清单/, 'confirming without a preview only shows the preview')
+    assert.equal(shellCalls.length, 0)
+    const preview = await command(agent, '')
+    assert.match(preview.text.split('\n')[0]!, /等你确认（4 项）/)
+    assert.match(preview.text, /\$ node -e "process.exit\(0\)"/, 'the preview shows the commands that will run')
+    assert.equal(shellCalls.length, 0, 'a preview runs nothing')
+    const confirmed = await command(agent, ' 确认')
     assert.equal(confirmed.kind, 'success')
+    assert.match(confirmed.text, /已确认/)
 
     const run = await callTool('done_check_run', {}, agent)
     assert.equal(run.isError, false)
@@ -115,27 +123,51 @@ describe('plugin on the real DSH runtimes', () => {
     assert.match(run.value.skipped[0].reason, /未执行：pwsh 工具拒绝或未能执行：.*policy: no writes/)
     assert.ok(shellCalls.every((c) => c.hasParent), 'agent-path commands are nested dispatches under the done_check_run call')
     assert.ok(shellCalls.every((c) => !c.command.includes('pwned')), 'the denied command never reached the shell tool')
-    assert.equal(run.value.summary, '4 项验收中，1 项通过、1 项失败、1 项未执行、1 项待人工确认')
+    assert.equal(run.value.verdict, '❌ 新增 CSV 导出功能还有 1 项检查未通过')
+    assert.match(run.value.nextStep, /让 Agent 排查/)
+    assert.match(run.value.markdown, /测试报告：lint: 2 problems/)
+    assert.match(run.value.markdown, /命令被权限设置拒绝，没有执行/)
 
-    const show = await command(agent, ' show lint')
+    const show = await command(agent, ' 详情 lint')
     assert.match(show.text, /lint: 2 problems/)
     assert.match(show.text, /退出码 1/)
+    const legacy = await command(agent, ' show lint')
+    assert.equal(legacy.text, show.text, 'the old show alias still works')
 
-    const verdict = await command(agent, ' pass zh 手动下载了 报表.csv')
+    const verdict = await command(agent, ' ok 手动下载了 报表.csv')
     assert.equal(verdict.kind, 'success')
 
     repo.write('src/export.ts', 'export const csv = 2\n')
     const stale = await callTool('done_check_status', {}, agent)
     assert.deepEqual(stale.value.checks.map((c: any) => c.state), ['stale', 'stale', 'not_run', 'stale'])
-    assert.match(stale.value.markdown, /\| `tests` \| 测试通过 \| 自动 \| 已过期 \| 上次通过；修改 src\/export\.ts \|/)
+    assert.equal(stale.value.verdict, '🔄 代码已更新，3 项需要重新检查')
+    assert.match(stale.value.markdown, /2 项可以自动重验，1 项需要你手动复核/)
 
     const userRun = await command(agent, ' run tests')
     assert.equal(userRun.kind, 'success')
     assert.ok(!shellCalls.at(-1)?.hasParent, 'user-path commands are root dispatches through the same pipeline')
     const after = await callTool('done_check_status', {}, agent)
     assert.equal(after.value.checks[0].state, 'passed')
+
+    // The bare command does the next thing that is due: lint is stale, forbidden was never checked; tests stays untouched.
+    const before = shellCalls.length
+    const smart = await command(agent, '')
+    assert.deepEqual(shellCalls.slice(before).map((c) => c.command.includes('lint:') ? 'lint' : 'other'), ['lint'], 'only the due check ran; the denied one never reached the shell')
+    const lines = smart.text.split('\n')
+    assert.equal(lines[0], '❌ 新增 CSV 导出功能还有 1 项检查未通过')
+    assert.match(smart.text, /⚠️ 被权限策略拒绝的命令\n   原因：命令被权限设置拒绝，没有执行\n   这不是检查失败，也不表示功能测过了。/)
+    assert.doesNotMatch(smart.text, /export-tests|[0-9a-f]{12}|\bms\b|毫秒/, 'the default summary carries no internal ids, hashes or timings')
   })
 
+  it('refuses to record a verdict on an automatic check or an unknown number', async () => {
+    const repo = makeRepo({ 'src/a.ts': 'a\n' })
+    repo.write('done-check.yaml', CHECKLIST)
+    const agent = agentFor(repo.root)
+    await command(agent, '')
+    await command(agent, ' confirm')
+    assert.match((await command(agent, ' ok 1')).text, /是自动检查/)
+    assert.match((await command(agent, ' ok 9')).text, /没有第 9 项/)
+  })
   it('the agent has no tool to confirm or to record a manual verdict', () => {
     const names = ctx.tools.schemas().map((s: any) => s.name).filter((n: string) => n.startsWith('done_check'))
     assert.deepEqual(names.sort(), ['done_check_draft', 'done_check_run', 'done_check_status'])

@@ -98,3 +98,27 @@ describe('serializeChecklist', () => {
     assert.deepEqual(again.checks.map(definitionHash), list.checks.map(definitionHash))
   })
 })
+
+describe('manual check "how" (v0.2)', () => {
+  const WITH_HOW = SAMPLE.replace('    name: 中文文件名下载正常\n    manual: true', '    name: 中文文件名下载正常\n    manual: true\n    how: 导出“报表”，确认文件名没有乱码')
+
+  it('is part of the definition and survives serialization', () => {
+    const plain = parseOk(SAMPLE).checks[2]!
+    const withHow = parseOk(WITH_HOW).checks[2]!
+    assert.equal(withHow.how, '导出“报表”，确认文件名没有乱码')
+    assert.notEqual(definitionHash(withHow), definitionHash(plain))
+    assert.deepEqual(parseOk(serializeChecklist(parseOk(WITH_HOW))), parseOk(WITH_HOW))
+  })
+
+  it('leaves existing definitions byte-for-byte as they were, so v0.1 confirmations stay valid', () => {
+    const plain = parseOk(SAMPLE).checks[2]!
+    assert.ok(!('how' in plain))
+    assert.ok(!serializeChecklist(parseOk(SAMPLE)).includes('how'))
+  })
+
+  it('is only for manual checks and must not be empty', () => {
+    const auto = SAMPLE.replace('    run: pnpm tsc --noEmit', '    run: pnpm tsc --noEmit\n    how: x')
+    assert.equal(parseChecklist(auto).ok, false)
+    assert.equal(parseChecklist(WITH_HOW.replace(/how: .*/, 'how: "  "')).ok, false)
+  })
+})

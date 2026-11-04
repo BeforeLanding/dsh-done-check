@@ -157,3 +157,26 @@ describe('evidence storage', () => {
     assert.deepEqual({ ...loaded.state, latest: {} }, { ...emptyState(repo.root), latest: {} })
   })
 })
+
+describe('failure excerpt (v0.2)', () => {
+  it('is stored on a failed run as display data only; the outcome and the log are unchanged', async () => {
+    const repo = await passedRepo()
+    repo.write('src/export.ts', 'export const csv = 2\n')
+    await runChecks(repo.env, fakeExec({ 'node --test': { exitCode: 1, stderr: '\u001b[31mtoCsv mismatch\u001b[39m\n' } }), { ids: ['export-tests'], signal: signal() })
+    const loaded = await repo.env.store.load(repo.root)
+    assert.ok(loaded.ok)
+    const rec = await repo.env.store.readRun(repo.root, loaded.state.latest['export-tests']!)
+    assert.ok(!('corrupt' in rec) && rec.kind === 'auto')
+    assert.deepEqual(rec.failureExcerpt, ['toCsv mismatch'])
+    assert.equal(rec.outcome, 'failed')
+    assert.match(rec.stderrTail, /toCsv mismatch/, 'the raw output is still kept in full')
+  })
+
+  it('is absent on a passing run, and old records without it still read back', async () => {
+    const repo = await passedRepo()
+    const loaded = await repo.env.store.load(repo.root)
+    assert.ok(loaded.ok)
+    const rec = await repo.env.store.readRun(repo.root, loaded.state.latest['export-tests']!)
+    assert.ok(!('corrupt' in rec) && rec.kind === 'auto' && rec.failureExcerpt === undefined)
+  })
+})

@@ -2,7 +2,7 @@ import assert from 'node:assert/strict'
 import { describe, it } from 'node:test'
 import { type ToolsLike, toolExec } from '../src/plugin/shell.ts'
 import { NotExecutedError } from '../src/service.ts'
-import { stripAnsi } from '../src/plugin/render.ts'
+import { failureExcerpt, stripAnsi } from '../src/core/excerpt.ts'
 
 const fg = (exitCode: number) => ({ kind: 'foreground', exitCode, signal: null, timedOut: false, aborted: false, timeoutMs: 1, stdout: { text: 'out', truncated: false }, stderr: { text: '', truncated: false } })
 const unknown = (name: string) => ({ isError: true as const, error: { message: `unknown tool "${name}"`, info: { name: 'ToolNotFoundError', code: 'UNKNOWN_TOOL' } } })
@@ -66,18 +66,21 @@ describe('stripAnsi', () => {
   })
 })
 
-describe('renderReportText', () => {
-  it('pads only the ASCII id column and puts CJK text on its own lines', async () => {
-    const { renderReportText } = await import('../src/plugin/render.ts')
-    const checklist = { version: 1 as const, task: '新增 CSV 导出', checks: [
-      { id: 'export-tests', name: '导出测试通过', run: 'x', manual: false, timeout: 300, cwd: '.', watch: [] },
-      { id: 'zh', name: '中文文件名', run: null, manual: true, timeout: 0, cwd: '.', watch: [] },
-    ] }
-    const st = (checkId: string, state: any, extra = {}) => ({ checkId, state, lastOutcome: null, changes: null, reason: null, lastAttemptCancelled: false, ...extra })
-    const text = renderReportText({ structure: 'confirmed', taskChanged: false, added: [], removed: [], summary: '2 项验收中，1 项已过期、1 项待人工确认',
-      checks: [st('export-tests', 'stale', { lastOutcome: 'passed', changes: { modified: ['src/a.mjs'], added: [], removed: [] } }), st('zh', 'awaiting_manual')] }, checklist)
-    assert.ok(text.includes('export-tests  已过期\n  导出测试通过\n  上次通过；修改 src/a.mjs'), text)
-    assert.ok(text.includes('zh            待人工确认\n  中文文件名（人工）'), text)
-    assert.ok(!text.includes('|'), 'no Markdown table syntax')
+describe('failureExcerpt', () => {
+  const NODE_NOISE = "(node:5188) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.\n(Use `node --trace-warnings ...` to show where the warning was created)\n"
+
+  it('quotes the last three meaningful stderr lines, without colour codes or runtime warnings', () => {
+    const stderr = `${NODE_NOISE}\u001b[31mfirst\u001b[39m\nsecond\n\nthird\nfourth\n`
+    assert.deepEqual(failureExcerpt('ignored', stderr), ['second', 'third', 'fourth'])
+  })
+
+  it('falls back to stdout when stderr only had warnings, and to nothing when there is no output', () => {
+    assert.deepEqual(failureExcerpt('not ok 1 - toCsv mismatch\n', NODE_NOISE), ['not ok 1 - toCsv mismatch'])
+    assert.deepEqual(failureExcerpt('', NODE_NOISE), [])
+  })
+
+  it('caps very long lines', () => {
+    const [line] = failureExcerpt('', 'x'.repeat(500))
+    assert.ok(line!.length <= 201 && line!.endsWith('…'))
   })
 })

@@ -17,6 +17,8 @@ export interface CheckDefinition {
   readonly cwd: string
   /** Glob patterns relative to the project root; empty = whole workspace. */
   readonly watch: readonly string[]
+  /** Manual checks only: one sentence on how the user can verify it. Part of the definition. Omitted when absent, so old hashes stay valid. */
+  readonly how?: string
 }
 
 export interface Checklist {
@@ -30,7 +32,7 @@ export type ParseResult =
   | { readonly ok: false; readonly errors: readonly string[] }
 
 const ID_PATTERN = /^[a-z0-9][a-z0-9-]{0,63}$/
-const KNOWN_KEYS = new Set(['id', 'name', 'run', 'manual', 'timeout', 'cwd', 'watch'])
+const KNOWN_KEYS = new Set(['id', 'name', 'run', 'manual', 'timeout', 'cwd', 'watch', 'how'])
 
 export function parseChecklist(text: string): ParseResult {
   let raw: unknown
@@ -82,6 +84,13 @@ export function validateChecklist(raw: unknown): ParseResult {
     if (manual && run) errors.push(`${id}: run 与 manual 只能二选一`)
     if (!manual && !run) errors.push(`${id}: 自动项必须提供 run，人工项请写 manual: true`)
 
+    let how: string | undefined
+    if (item.how !== undefined) {
+      if (!manual) errors.push(`${id}: how 只用于人工项`)
+      else if (typeof item.how !== 'string' || !item.how.trim()) errors.push(`${id}: how 必须是非空字符串`)
+      else how = item.how.trim()
+    }
+
     let timeout = DEFAULT_TIMEOUT_SEC
     if (item.timeout !== undefined) {
       if (manual) errors.push(`${id}: 人工项不需要 timeout`)
@@ -121,6 +130,7 @@ export function validateChecklist(raw: unknown): ParseResult {
       timeout: manual ? 0 : timeout,
       cwd: manual ? '.' : cwd,
       watch: [...new Set(watch)].sort(),
+      ...(how !== undefined ? { how } : {}),
     })
   })
 
@@ -145,8 +155,10 @@ export function structureHash(checklist: Pick<Checklist, 'task' | 'checks'>): st
 export function serializeChecklist(checklist: Checklist): string {
   const checks = checklist.checks.map((c) => {
     const out: Record<string, unknown> = { id: c.id, name: c.name }
-    if (c.manual) out.manual = true
-    else {
+    if (c.manual) {
+      out.manual = true
+      if (c.how) out.how = c.how
+    } else {
       out.run = c.run
       if (c.timeout !== DEFAULT_TIMEOUT_SEC) out.timeout = c.timeout
       if (c.cwd !== '.') out.cwd = c.cwd

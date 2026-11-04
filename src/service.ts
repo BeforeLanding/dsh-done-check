@@ -6,12 +6,14 @@
  */
 import { readFile } from 'node:fs/promises'
 import { join, resolve } from 'node:path'
+import { canonicalJson, sha256 } from './core/hash.ts'
 import { CHECKLIST_FILE, type CheckDefinition, type Checklist, definitionHash, parseChecklist, structureHash } from './core/checklist.ts'
 import { type ListFiles, type WorkspaceSnapshot, fingerprintFor, gitListFiles, snapshotWorkspace, watchCoverageError } from './core/fingerprint.ts'
 import {
-  type AutoRun, type ChecklistConfirmation, type ManualDecision, type RawRun, type Report,
+  type AutoRun, type ChecklistConfirmation, type CompletedRun, type CorruptRecord, type ManualDecision, type RawRun, type Report,
   STATE_LABELS, assessStability, classifyRun, deriveReport,
 } from './core/status.ts'
+import { failureExcerpt } from './core/excerpt.ts'
 import { type StateStore, confirmState, newRunId, recordRun, tail } from './store/state.ts'
 
 export interface ExecRequest {
@@ -70,9 +72,19 @@ function coverageErrors(checks: readonly CheckDefinition[], snapshot: WorkspaceS
   })
 }
 
-/** User-only: confirm the checklist exactly as it is on disk now. */
-export async function confirm(env: ServiceEnv): Promise<Report> {
+/** The checklist on disk is no longer the one the user was shown. */
+export class PreviewMismatchError extends DoneCheckError {}
+
+/**
+ * User-only: confirm the checklist exactly as it is on disk now. With
+ * `expectedPreview` (a `previewDigest`), it only goes through if the list
+ * is still the one the user was shown.
+ */
+export async function confirm(env: ServiceEnv, expectedPreview?: string): Promise<Report> {
   const checklist = await loadChecklist(env.root)
+  if (expectedPreview !== undefined && previewDigest(checklist) !== expectedPreview) {
+    throw new PreviewMismatchError('清单在你预览之后又变了')
+  }
   const errors = coverageErrors(checklist.checks, await snapshotOf(env))
   if (errors.length) throw new DoneCheckError(`无法确认：\n- ${errors.join('\n- ')}`)
   const confirmation: ChecklistConfirmation = {
@@ -87,6 +99,17 @@ export async function confirm(env: ServiceEnv): Promise<Report> {
 }
 
 export async function report(env: ServiceEnv): Promise<Report> {
+  return (await view(env)).report
+}
+
+/** Everything the UI needs to describe the current state: the checklist, the derived report, and the latest run per check. */
+export interface View {
+  readonly checklist: Checklist
+  readonly report: Report
+  readonly results: Readonly<Record<string, CompletedRun | CorruptRecord>>
+}
+
+export async function view(env: ServiceEnv): Promise<View> {
   const checklist = await loadChecklist(env.root)
   const loaded = await env.store.load(env.root)
   if (!loaded.ok) {
@@ -94,7 +117,10 @@ export async function report(env: ServiceEnv): Promise<Report> {
     const checks = checklist.checks.map((c) => ({
       checkId: c.id, state: 'unknown' as const, lastOutcome: null, changes: null, reason, lastAttemptCancelled: false,
     }))
-    return { structure: 'unconfirmed', taskChanged: false, added: [], removed: [], checks, summary: `${checks.length} 项验收全部${STATE_LABELS.unknown}：${reason}` }
+    return {
+      checklist, results: {},
+      report: { structure: 'unconfirmed', taskChanged: false, added: [], removed: [], checks, summary: `${checks.length} 项验收全部${STATE_LABELS.unknown}：${reason}` },
+    }
   }
   const state = loaded.state
   let snapshot: WorkspaceSnapshot | { error: string }
@@ -103,19 +129,40 @@ export async function report(env: ServiceEnv): Promise<Report> {
   } catch (err) {
     snapshot = { error: (err as Error).message }
   }
-  return deriveReport({
+  const results = await env.store.loadResults(env.root, state)
+  const rep = deriveReport({
     checklist,
     confirmation: state.confirmation ?? undefined,
     snapshot,
-    results: await env.store.loadResults(env.root, state),
+    results,
     active: state.active,
     cancelled: new Set(Object.keys(state.cancelled)),
     now: nowOf(env),
   })
+  return { checklist, report: rep, results }
 }
+
+/**
+ * Identifies exactly what the user is shown in a confirmation preview: the
+ * task, the id set and every check's full definition. `confirm` from the UI
+ * only goes through when this still matches the last preview.
+ */
+export function previewDigest(checklist: Checklist): string {
+  return sha256(canonicalJson({ structure: structureHash(checklist), definitions: checklist.checks.map((c) => [c.id, definitionHash(c)]).sort() }))
+}
+
+export type SkipKind =
+  /** The command never ran: denied by a permission policy, no shell tool, sandbox failure. No evidence. */
+  | 'not_executed'
+  /** Not confirmed, changed since confirmation, or the watch matches nothing. */
+  | 'blocked'
+  /** Already running in another session. */
+  | 'busy'
+  | 'cancelled'
 
 export interface RunSkip {
   readonly checkId: string
+  readonly kind: SkipKind
   readonly reason: string
 }
 
@@ -128,7 +175,7 @@ export interface RunSummary {
 /** Preconditions shared by running and deciding: confirmed, unchanged, watch covers files. */
 function preflight(check: CheckDefinition, confirmation: ChecklistConfirmation | null, snapshot: WorkspaceSnapshot): string | null {
   const confirmed = confirmation?.definitions[check.id]
-  if (confirmed === undefined) return '尚未确认，请用户运行 /done-check confirm'
+  if (confirmed === undefined) return '尚未确认，请用户先查看并确认清单（/done-check）'
   if (confirmed !== definitionHash(check)) return '确认后定义已改动，请用户重新确认'
   return watchCoverageError(check.watch, fingerprintFor(snapshot, check.watch))
 }
@@ -150,7 +197,7 @@ export async function runChecks(env: ServiceEnv, exec: Exec, opts: { ids?: reado
   const skipped: RunSkip[] = []
   for (const check of selected) {
     if (opts.signal.aborted) {
-      skipped.push({ checkId: check.id, reason: '已取消' })
+      skipped.push({ checkId: check.id, kind: 'cancelled', reason: '已取消' })
       continue
     }
     const loaded = await env.store.load(env.root)
@@ -158,7 +205,7 @@ export async function runChecks(env: ServiceEnv, exec: Exec, opts: { ids?: reado
     const before = await snapshotOf(env)
     const blocked = preflight(check, loaded.state.confirmation, before)
     if (blocked) {
-      skipped.push({ checkId: check.id, reason: blocked })
+      skipped.push({ checkId: check.id, kind: 'blocked', reason: blocked })
       continue
     }
 
@@ -171,7 +218,7 @@ export async function runChecks(env: ServiceEnv, exec: Exec, opts: { ids?: reado
       return { state: { ...s, active: { ...s.active, [check.id]: { runId, checkId: check.id, startedAt: startedAt.toISOString(), deadline } } }, value: true }
     })
     if (!claimed) {
-      skipped.push({ checkId: check.id, reason: '该项正在另一处执行' })
+      skipped.push({ checkId: check.id, kind: 'busy', reason: '该项正在另一处执行' })
       continue
     }
 
@@ -187,7 +234,7 @@ export async function runChecks(env: ServiceEnv, exec: Exec, opts: { ids?: reado
             const { [check.id]: _gone, ...active } = s.active
             return { state: { ...s, active }, value: undefined }
           })
-          skipped.push({ checkId: check.id, reason: `未执行：${err.message}` })
+          skipped.push({ checkId: check.id, kind: 'not_executed', reason: `未执行：${err.message}` })
           continue
         }
         out = { exitCode: null, signal: null, timedOut: false, aborted: opts.signal.aborted, infraError: (err as Error).message, stdout: '', stderr: '', shell: null }
@@ -215,6 +262,7 @@ export async function runChecks(env: ServiceEnv, exec: Exec, opts: { ids?: reado
         outcome, exitCode: out.exitCode, signal: out.signal, timedOut: out.timedOut, errorMessage: out.infraError,
         shell: out.shell, stdoutTail: tail(out.stdout), stderrTail: tail(out.stderr), log,
         unstable: assessStability(fpBefore, fpAfter, hash, defAfter),
+        ...(outcome !== 'passed' ? { failureExcerpt: failureExcerpt(out.stdout, out.stderr) } : {}),
       }
       await env.store.writeRun(env.root, record)
       await env.store.update(env.root, (s) => ({ state: recordRun(s, record), value: undefined }))
@@ -236,7 +284,7 @@ export async function decide(env: ServiceEnv, checkId: string, outcome: 'passed'
   const checklist = await loadChecklist(env.root)
   const check = checklist.checks.find((c) => c.id === checkId)
   if (!check) throw new DoneCheckError(`清单中没有检查 ${checkId}`)
-  if (!check.manual) throw new DoneCheckError(`${checkId} 是自动检查，请用 /done-check run`)
+  if (!check.manual) throw new DoneCheckError(`${checkId} 是自动检查，请用 /done-check ok 或 /done-check no 记录结论`)
   const loaded = await env.store.load(env.root)
   if (!loaded.ok) throw new DoneCheckError(`证据状态无法读取：${loaded.reason}`)
   const snapshot = await snapshotOf(env)
