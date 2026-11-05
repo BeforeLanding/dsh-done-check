@@ -1,6 +1,6 @@
 # Changelog
 
-## 0.2.0 — 2026-11-04
+## 0.2.0 — 2026-11-05
 
 Redesigns the user-facing layer only. The verification rules are unchanged (user-only confirmation and manual verdicts, definition/structure hashes, content fingerprint, unstable runs never revived, shell dispatch through the permission pipeline), and every 0.1 test still passes unmodified. Existing confirmations and evidence stay valid; nothing to migrate.
 
