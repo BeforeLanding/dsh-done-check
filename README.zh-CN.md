@@ -15,17 +15,23 @@
 
 ## 演示
 
-（此演示录制于 0.1.1，早于 v0.2 的输出改版；其中用到的 `run`、`show` 写法仍然可用，之后会重录。）真实的 DSH Web 流程：**检查通过 → 修改代码 → 旧结果过期 → 重跑失败 → 查看证据**。采集自 DSH 0.1.5-rc.1 和一个 CSV 导出示例仓库，保留完整 DSH 界面，每条完整命令停留 3 秒后再显示结果，压缩执行等待时间。
+真实的 DSH Web 会话，使用 v0.2（DSH 0.1.5-rc.1，一个 CSV 导出示例仓库，全程只用命令）。
 
-![真实 DSH 流程：代码改动后旧结果过期，重跑抓住 CSV 回归，证据中记录退出码 1 和 toCsv mismatch](https://raw.githubusercontent.com/BeforeLanding/dsh-done-check/main/docs/images/done-check-demo.gif)
+1. `/done-check` 预览清单：会执行哪些命令，哪项需要你亲自确认。
+2. `/done-check 确认`：确认不等于授权，命令仍按你的权限设置执行。
+3. `/done-check` 执行检查，第一次就抓到真实问题：含逗号的字段没有加引号。测试报告按原文摘录。
+4. 修好 `toCsv` 后再输入 `/done-check`：两项自动检查通过，只剩人工项。
+5. `/done-check ok` 记录你的结论：3 项全部通过。
 
-把 CSV 分隔符从 `,` 改成 `;` 后，旧结果失效。`/done-check run` 抓住回归，`/done-check show export-tests` 展示命令、退出码、执行器、代码指纹和日志。片头的人工结论在录制前已确认；重跑自动检查不会让它重新有效。
+![dsh-done-check v0.2 的真实 DSH 会话：预览、确认、检查失败并附测试报告、修复、三项全部通过](https://raw.githubusercontent.com/BeforeLanding/dsh-done-check/main/docs/images/done-check-demo.gif)
+
+最后一帧可以看到，不展开任何一行，折叠标题本身就能读出每一步的结论。
 
 [静态预览](https://raw.githubusercontent.com/BeforeLanding/dsh-done-check/main/docs/images/done-check-demo-poster.png) · [MP4 视频](https://github.com/BeforeLanding/dsh-done-check/raw/refs/heads/main/docs/images/done-check-demo.mp4)
 
 ## 状态
 
-v0.2.0，早期版本。v0.2 只重做了你看到和输入的这一层，验证规则没有改动；新输出有快照测试覆盖，但还没有在真实 DSH 宿主上重新验证。0.1 的流程已在真实的 DSH Web 宿主（0.1.5-rc.1 和 0.2.1-rc.5）上走通了全流程，检查由真实的 `pwsh` 工具在沙箱中执行。支持的 DSH 版本：`>=0.1.5-rc.1 <0.3.0`。设计见 [docs/DESIGN.md](https://github.com/BeforeLanding/dsh-done-check/blob/main/docs/DESIGN.md)。
+v0.2.0，早期版本。v0.2 只重做了你看到和输入的这一层，验证规则没有改动。新输出已在真实的 DSH Web 宿主（0.1.5-rc.1 和 0.2.1-rc.5）上验证，检查由真实的 `pwsh` 工具在沙箱中执行。支持的 DSH 版本：`>=0.1.5-rc.1 <0.3.0`。设计见 [docs/DESIGN.md](https://github.com/BeforeLanding/dsh-done-check/blob/main/docs/DESIGN.md)。
 
 ## 安装
 

@@ -15,17 +15,23 @@ Executable acceptance checklists for [DeepSeek Harness](https://github.com/deeps
 
 ## Demo
 
-The demo below was recorded on 0.1.1, before the v0.2 output redesign; the old command spellings it shows (`run`, `show`) still work. It will be re-recorded. A real DSH Web workflow: **passed → code changed → stale → re-run fails → inspect evidence**. Captured on DSH 0.1.5-rc.1 with a small CSV export repository; the full DSH interface is shown, with each complete command held for 3 seconds before its result. Waiting time is shortened; status text is Chinese.
+A real DSH web session with v0.2 (DSH 0.1.5-rc.1, a small CSV export repository, commands only). Status text is Chinese.
 
-![Real DSH workflow: old results become stale after a code change, re-running catches the CSV regression, and the evidence shows exit code 1 and toCsv mismatch](https://raw.githubusercontent.com/BeforeLanding/dsh-done-check/main/docs/images/done-check-demo.gif)
+1. `/done-check` previews the checklist: which commands will run and which check needs you.
+2. `/done-check 确认` confirms it. Confirming does not authorize anything; commands still go through your permission settings.
+3. `/done-check` runs the checks and catches a real bug on the first try: fields containing commas were not quoted. The test report is quoted as printed.
+4. After fixing `toCsv`, `/done-check` re-runs: both automatic checks pass and only the manual check is left.
+5. `/done-check ok` records your verdict: all 3 checks pass.
 
-Changing the CSV separator from `,` to `;` invalidates the old results. `/done-check run` then catches the regression, while `/done-check show export-tests` reveals the command, exit code, executor, fingerprint and log. The manual verdict was recorded before this clip and stays stale after re-running automatic checks.
+![Real DSH session with dsh-done-check v0.2: preview, confirm, a failing check with its test report, the fix, and all three checks passing](https://raw.githubusercontent.com/BeforeLanding/dsh-done-check/main/docs/images/done-check-demo.gif)
+
+The last frame shows that each step's conclusion is readable from the collapsed row titles alone.
 
 [Static preview](https://raw.githubusercontent.com/BeforeLanding/dsh-done-check/main/docs/images/done-check-demo-poster.png) · [MP4](https://github.com/BeforeLanding/dsh-done-check/raw/refs/heads/main/docs/images/done-check-demo.mp4)
 
 ## Status
 
-v0.2.0, an early release. v0.2 redesigns only what you read and type; the verification rules are unchanged, and the new output is covered by snapshot tests but has not yet been re-checked on a real DSH host. The 0.1 flow was run on real DSH web hosts (0.1.5-rc.1 and 0.2.1-rc.5), with checks executed by the real `pwsh` tool inside its sandbox. Supported DSH: `>=0.1.5-rc.1 <0.3.0`. Design: [docs/DESIGN.md](https://github.com/BeforeLanding/dsh-done-check/blob/main/docs/DESIGN.md) (in Chinese). Status messages are currently in Chinese only.
+v0.2.0, an early release. v0.2 redesigns only what you read and type; the verification rules are unchanged. The new output was checked on real DSH web hosts (0.1.5-rc.1 and 0.2.1-rc.5), with checks executed by the real `pwsh` tool inside its sandbox. Supported DSH: `>=0.1.5-rc.1 <0.3.0`. Design: [docs/DESIGN.md](https://github.com/BeforeLanding/dsh-done-check/blob/main/docs/DESIGN.md) (in Chinese). Status messages are currently in Chinese only.
 
 ## Install
 
