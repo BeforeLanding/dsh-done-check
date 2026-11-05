@@ -6,28 +6,22 @@
 
 为 [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness) 编码任务保存可执行的验收清单：每条"已完成"都有真实执行的检查结果，代码变化后旧结果自动标记为需要重验。
 
+## 实机演示
+
+字段 `a,b` 和 `c` 应该导出为 `"a,b",c`。第一次运行 `/done-check`，测试报告里却是 `a,b,c`，多出了一列。
+
+![DSH 会话中的 CSV 验收：测试报告指出缺少引号；修复后两项自动检查通过；用户验证中文文件名后，三项全部通过。](docs/images/done-check-demo.gif)
+
+修好 `toCsv` 后重新运行，两项自动检查都通过了。最后一项要亲自下载文件，确认中文文件名正确，再输入 `/done-check ok`。
+
+[查看失败截图](docs/images/done-check-demo-poster.png) · [从预览清单开始看（MP4）](docs/images/done-check-demo.mp4)
+
 > **它能说明什么，不能说明什么**
 >
 > - "3 项验收中，2 项通过、1 项待人工确认"只表示**约定的检查**的结果，不表示需求已完整实现。插件不显示百分比或"完成度"。
 > - 防的是 Agent 随手改写结论：自己宣布测试通过、偷改检查命令、删掉失败项、伪造确认记录。不防拥有不受限 shell 的恶意 Agent，它可以改测试本身，也可以改 DSH home 下的文件。
 > - 确认清单不等于授权执行其中的命令。检查命令由当前 DSH 组合的 shell 执行器运行；`bash-local`/`pwsh-local` 不做任何隔离，需要隔离请组合对应的 sandbox 执行器。
 > - `watch` 是你声明的范围，不是自动分析出的依赖关系。
-
-## 演示
-
-真实的 DSH Web 会话，使用 v0.2（DSH 0.1.5-rc.1，一个 CSV 导出示例仓库，全程只用命令）。
-
-1. `/done-check` 预览清单：会执行哪些命令，哪项需要你亲自确认。
-2. `/done-check 确认`：确认不等于授权，命令仍按你的权限设置执行。
-3. `/done-check` 执行检查，第一次就抓到真实问题：含逗号的字段没有加引号。测试报告按原文摘录。
-4. 修好 `toCsv` 后再输入 `/done-check`：两项自动检查通过，只剩人工项。
-5. `/done-check ok` 记录你的结论：3 项全部通过。
-
-![dsh-done-check v0.2 的真实 DSH 会话：预览、确认、检查失败并附测试报告、修复、三项全部通过](https://raw.githubusercontent.com/BeforeLanding/dsh-done-check/main/docs/images/done-check-demo.gif)
-
-最后一帧可以看到，不展开任何一行，折叠标题本身就能读出每一步的结论。
-
-[静态预览](https://raw.githubusercontent.com/BeforeLanding/dsh-done-check/main/docs/images/done-check-demo-poster.png) · [MP4 视频](https://github.com/BeforeLanding/dsh-done-check/raw/refs/heads/main/docs/images/done-check-demo.mp4)
 
 ## 状态
 

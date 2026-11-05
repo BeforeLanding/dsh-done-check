@@ -6,28 +6,22 @@ English | [中文](https://github.com/BeforeLanding/dsh-done-check/blob/main/REA
 
 Executable acceptance checklists for [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness) coding tasks: every "done" is backed by a check that actually ran, and old results are flagged for re-check when the code changes.
 
+## Demo
+
+The fields `a,b` and `c` should export as `"a,b",c`. The first `/done-check` run reports `a,b,c` instead: the missing quotes turn two columns into three.
+
+![DSH session showing the CSV test failure, both automated checks passing after the fix, and the user confirming the downloaded filename.](docs/images/done-check-demo.gif)
+
+After the fix to `toCsv`, both automated checks pass. The last check needs a person to download the file, verify its Chinese filename, and enter `/done-check ok`.
+
+[View the failing test (screenshot)](docs/images/done-check-demo-poster.png) · [Watch from checklist preview (MP4)](docs/images/done-check-demo.mp4)
+
 > **What it can and cannot tell you**
 >
 > - A summary such as "3 checks: 2 passed, 1 awaiting manual confirmation" covers **only the agreed checks**. It does not mean the requirement is fully implemented. The plugin never shows a percentage or a "completion" score.
 > - It guards against an agent casually rewriting the verdict: claiming tests passed, quietly changing a check command, deleting a failing check, or forging a confirmation. It does not stop a malicious agent with an unrestricted shell, which can edit the tests themselves or the files under DSH home.
 > - Confirming a checklist does not authorize running its commands. Checks run on the shell executor of the current DSH composition; `bash-local` / `pwsh-local` provide no isolation, so compose the matching sandbox executor if you need it.
 > - `watch` is a scope you declare, not a dependency graph inferred for you.
-
-## Demo
-
-A real DSH web session with v0.2 (DSH 0.1.5-rc.1, a small CSV export repository, commands only). Status text is Chinese.
-
-1. `/done-check` previews the checklist: which commands will run and which check needs you.
-2. `/done-check 确认` confirms it. Confirming does not authorize anything; commands still go through your permission settings.
-3. `/done-check` runs the checks and catches a real bug on the first try: fields containing commas were not quoted. The test report is quoted as printed.
-4. After fixing `toCsv`, `/done-check` re-runs: both automatic checks pass and only the manual check is left.
-5. `/done-check ok` records your verdict: all 3 checks pass.
-
-![Real DSH session with dsh-done-check v0.2: preview, confirm, a failing check with its test report, the fix, and all three checks passing](https://raw.githubusercontent.com/BeforeLanding/dsh-done-check/main/docs/images/done-check-demo.gif)
-
-The last frame shows that each step's conclusion is readable from the collapsed row titles alone.
-
-[Static preview](https://raw.githubusercontent.com/BeforeLanding/dsh-done-check/main/docs/images/done-check-demo-poster.png) · [MP4](https://github.com/BeforeLanding/dsh-done-check/raw/refs/heads/main/docs/images/done-check-demo.mp4)
 
 ## Status
 
