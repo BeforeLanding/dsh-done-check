@@ -21,11 +21,13 @@ function git(args, cwd) {
 function requireDemoRoot() {
   const root = git(['rev-parse', '--show-toplevel'], directory)
   const canonical = (path) => {
-    const value = realpathSync(resolve(path))
+    // Windows runners may expose Temp via an 8.3 alias (RUNNER~1), while git
+    // returns its long name. Resolve both through the native filesystem API.
+    const value = resolve(realpathSync.native(resolve(path)))
     return process.platform === 'win32' ? value.toLowerCase() : value
   }
   if (canonical(root) !== canonical(directory) || canonical(process.cwd()) !== canonical(directory)) {
-    throw new Error('Run setup first, then cd into the printed standalone demo directory. The parent repository is not a demo workspace.')
+    throw new Error(`Run setup first, then cd into the printed standalone demo directory. The parent repository is not a demo workspace.\nGit root: ${canonical(root)}\nScript directory: ${canonical(directory)}\nWorking directory: ${canonical(process.cwd())}`)
   }
 }
 
