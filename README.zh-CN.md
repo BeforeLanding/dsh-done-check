@@ -14,9 +14,9 @@
 
 [English](README.md) · 简体中文
 
-<img src="docs/images/hero.gif" alt="DSH 会话：/done-check 运行真实测试并原样引用失败报告；Agent 修复 toCsv；重新检查通过；用户确认最后一项人工检查。" width="760">
+<img src="docs/images/hero.gif" alt="DSH 会话：/done-check 执行已确认的检查，真实测试失败，并原样引用测试报告：期望 \"a,b\",c，实际 a,b,c。" width="760">
 
-<sub>一个真实的 bug，被真实的测试抓住：失败报告原样引用 → Agent 修复 → 重新检查 → 你确认最后一项人工检查。<br>录自真实的 DSH 网页会话。</sub>
+<sub>一个真实的 bug，被真实的测试抓住：<code>/done-check</code> 执行已确认的检查，并原样引用失败报告。<br>完整的“修复并验证”流程见下方视频。录自真实的 DSH 网页会话。</sub>
 
 </div>
 
