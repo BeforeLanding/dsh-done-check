@@ -14,7 +14,7 @@ Executable acceptance checklists for [DeepSeek Harness](https://github.com/deeps
 
 English · [简体中文](README.zh-CN.md)
 
-<img src="docs/images/hero.gif" alt="A DSH chat: /done-check runs the confirmed checks, and a real test fails with its own report quoted: expected \"a,b\",c, got a,b,c." width="760">
+<img src="docs/images/hero.gif" alt="A DSH chat: /done-check runs the confirmed checks, and a real test fails with its own report quoted: expected &quot;a,b&quot;,c, got a,b,c." width="760">
 
 <sub>A real bug, caught by a real test: <code>/done-check</code> runs the confirmed checks and quotes the failing report as-is.<br>The full fix-and-verify loop is in the video below. Recorded in a live DSH web session (status messages are currently in Chinese only).</sub>
 
