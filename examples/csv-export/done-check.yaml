@@ -1,0 +1,16 @@
+version: 1
+task: CSV 导出教学示例
+checks:
+  - id: selected-rows
+    name: 导出内容只包含所选记录和正确字段
+    run: node test.mjs rows
+    watch: [csv.mjs, test.mjs]
+  - id: csv-escaping
+    name: 逗号、双引号和换行保留在同一 CSV 字段内
+    run: node test.mjs escaping
+    watch: [csv.mjs, test.mjs]
+  - id: spreadsheet-review
+    name: 导出的中文 CSV 在目标表格应用中显示正确
+    manual: true
+    how: 运行 node demo.mjs export，在你使用的表格应用中以 UTF-8 打开 export.csv。确认仅有张三、李四两条记录、中文无乱码，张三备注中的逗号、引号和换行仍在同一单元格内。
+    watch: [csv.mjs, demo.mjs]

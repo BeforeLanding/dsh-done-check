@@ -1,104 +1,114 @@
-<p align="right"><strong>English</strong> · <a href="README.zh-CN.md">简体中文</a></p>
-
 <p align="center">
-  <img src="https://raw.githubusercontent.com/BeforeLanding/dsh-done-check/main/docs/images/readme-banner.svg" width="100%" alt="dsh-done-check — Done is a claim. Show the proof. Executable acceptance checks for DeepSeek Harness.">
+  <img src="https://raw.githubusercontent.com/BeforeLanding/dsh-done-check/main/docs/images/logo.svg" width="64" height="64" alt="">
 </p>
 
+<h1 align="center">dsh-done-check</h1>
+
+<p align="center">Executable acceptance checks for <a href="https://github.com/deepseek-ai/deepseek-harness">DeepSeek Harness</a>.</p>
+
 <p align="center">
-  <a href="https://www.npmjs.com/package/dsh-done-check"><img src="https://img.shields.io/npm/v/dsh-done-check?style=flat-square&amp;color=ffbd59&amp;label=npm" alt="npm version"></a>
+  <a href="https://www.npmjs.com/package/dsh-done-check"><img src="https://img.shields.io/npm/v/dsh-done-check?style=flat&amp;color=0969da" alt="npm version"></a>
   <a href="https://github.com/BeforeLanding/dsh-done-check/actions/workflows/ci.yml"><img src="https://github.com/BeforeLanding/dsh-done-check/actions/workflows/ci.yml/badge.svg" alt="CI"></a>
-  <a href="https://github.com/BeforeLanding/dsh-done-check/blob/main/LICENSE"><img src="https://img.shields.io/badge/license-MIT-7ee0b8?style=flat-square" alt="MIT license"></a>
+  <a href="https://github.com/BeforeLanding/dsh-done-check/blob/main/LICENSE"><img src="https://img.shields.io/badge/license-MIT-0969da?style=flat" alt="MIT license"></a>
 </p>
 
-<p align="center">
-  <strong>Acceptance checks that run inside <a href="https://github.com/deepseek-ai/deepseek-harness">DeepSeek Harness</a>.<br>Real commands. Recorded evidence. Your final say.</strong>
-</p>
+<p align="center">English · <a href="README.zh-CN.md">简体中文</a><br>
+<a href="#install">Install</a> · <a href="#quick-start">Quick start</a> · <a href="#try-the-example">Runnable example</a> · <a href="#walkthrough">Video</a></p>
 
-<p align="center"><a href="#start-checking">Install &amp; use</a> · <a href="#watch-the-story">Watch the demo</a> · <a href="https://github.com/BeforeLanding/dsh-done-check/blob/main/docs/USAGE.md">User guide</a></p>
+Keep a task's agreed checks in `done-check.yaml`. The plugin runs them through DSH, records the command and its result, and marks old results for re-checking when the watched files change. You confirm the checklist and decide the manual items.
 
-<p align="center">
-  <img src="https://raw.githubusercontent.com/BeforeLanding/dsh-done-check/main/docs/images/hero.gif" width="100%" alt="16-second edited demonstration using real DSH output: a CSV test fails, its evidence is inspected, the human confirms a manual check, and a code edit makes the old results stale.">
-</p>
-<p align="center"><sub>One CSV bug. Real DSH output. A result you can inspect.<br>16-second preview · <a href="https://raw.githubusercontent.com/BeforeLanding/dsh-done-check/main/docs/images/hero-poster.png">Still image</a> · Chinese UI, bilingual captions</sub></p>
+## Install
 
-<table>
-  <tr>
-    <td width="33%" valign="top"><strong>01 / Run it.</strong><br><br>A real command produces the result. Failed tests quote their own report; commands that could not run say so.</td>
-    <td width="33%" valign="top"><strong>02 / Own the verdict.</strong><br><br>The agent drafts and checks. You confirm the checklist and decide the manual items.</td>
-    <td width="33%" valign="top"><strong>03 / Keep it current.</strong><br><br>Change the watched code and the old result needs another check. Yesterday's evidence stays tied to yesterday's files.</td>
-  </tr>
-</table>
-
-## Start checking
-
-**DSH `>=0.1.5-rc.1 <0.3.0` · Node.js `>=22.19` · git project**
-
-For a `dsh web` profile:
+Requires **DSH `>=0.1.5-rc.1 <0.3.0`**, **Node.js `>=22.19`**, and a **git project**.
 
 ```bash
 dsh plugin --profile web add dsh-done-check
 ```
 
-Use your active profile name in place of `web` if it differs. In your project's DSH chat, ask:
-
-> Draft and save done-check.yaml for this task. Use this project's real tests and commands, name the behaviours they verify, and add a manual item with a how for anything I must inspect myself. Let me preview and confirm the checklist.
-
-Then send these separately:
-
-1. **Preview** — `/done-check` shows the checklist and commands. Nothing runs.
-2. **Confirm** — `/done-check confirm` accepts exactly the checklist you saw.
-3. **Check** — `/done-check` runs the automatic checks and shows what needs attention.
-
-Ask the agent to fix a failing check's underlying bug, then check again. Inspect manual items yourself and record `/done-check ok [n]` or `/done-check no [n] [note]`. If only one manual item is waiting, omit `n`.
-
-[Write a checklist yourself →](https://github.com/BeforeLanding/dsh-done-check/blob/main/docs/USAGE.md#write-a-checklist)
-
-## Watch the story
-
-**Done needs proof. Start with a real test.** A CSV escaping bug becomes a recorded failure, a verified fix, and a manual verdict that expires after a code edit.
+For another CLI-managed profile, replace `web` with its name. Follow your host's reload or restart prompt. [Install from source](https://github.com/BeforeLanding/dsh-done-check/blob/main/docs/USAGE.md#install).
 
 <p align="center">
-  <a href="https://github.com/BeforeLanding/dsh-done-check/blob/main/docs/video/dsh-done-check-film.mp4"><img src="https://raw.githubusercontent.com/BeforeLanding/dsh-done-check/main/docs/images/demo-cover.jpg" width="100%" alt="Play the new 64-second dsh-done-check film — Done needs proof. Start with a real test."></a>
+  <img src="https://raw.githubusercontent.com/BeforeLanding/dsh-done-check/main/docs/images/hero.gif" width="900" alt="Real DSH session: preview a CSV checklist, confirm it, run a failing test, inspect evidence, record a manual verdict, then see results become stale after an edit.">
+</p>
+<p align="center"><sub>18-second edit of a real DSH session. Chinese UI, bilingual step labels.<br><a href="#walkthrough">Watch the full walkthrough</a> · <a href="https://raw.githubusercontent.com/BeforeLanding/dsh-done-check/main/docs/images/hero-poster.png">View a still image</a></sub></p>
+
+## Quick start
+
+**1. Add a checklist at the git root.** Ask the agent:
+
+> Draft and save done-check.yaml for this task. Use the project's actual test commands and name what each one verifies. Add a manual item with instructions for anything I need to inspect myself.
+
+Or [write the YAML yourself](https://github.com/BeforeLanding/dsh-done-check/blob/main/docs/USAGE.md#write-a-checklist).
+
+**2. Preview, confirm, run.** Send these as three separate messages in your project's DSH chat:
+
+```text
+/done-check
+/done-check confirm
+/done-check
+```
+
+The first command shows the checklist and commands without running them. `confirm` records your acceptance of that exact preview. The next `/done-check` runs the automatic checks.
+
+**3. Act on the result.** Read a failed test's report, ask the agent to fix the problem, then run `/done-check` again. For a manual item, follow its instructions and record `/done-check ok [n]` or `/done-check no [n] [note]`. Omit `n` when only one manual item is waiting.
+
+Plugin output is currently Chinese. Commands accept both English and Chinese aliases, including `confirm` / `确认` and `details` / `详情`.
+
+## Try the example
+
+The [CSV export example](https://github.com/BeforeLanding/dsh-done-check/tree/main/examples/csv-export) includes a deliberately broken exporter, two executable checks, a manual check and a supplied fix. It needs only Node.js and git; no dependency installation or API key is needed to run its tests.
+
+```bash
+git clone https://github.com/BeforeLanding/dsh-done-check.git
+cd dsh-done-check
+node examples/csv-export/demo.mjs setup
+```
+
+The setup command prints a new standalone git directory and the next commands. Open a DSH session there, then follow the example's README to reproduce **failure → fix → pass → stale**. If you already have this checkout, only run the setup command. The example is a reproducible companion to the recorded CSV scenario; the video uses the original session footage.
+
+## What a result tells you
+
+- **Passed or failed:** the command actually ran. Its exit code, output, duration and file-content fingerprint are recorded.
+- **Not run:** permission denial, timeout or an executor problem prevented a usable result. It is neither a pass nor a failure.
+- **Waiting for you:** a manual item needs your verdict. The agent cannot confirm a checklist or record a manual decision.
+- **Needs re-checking:** the watched files differ from the ones behind the saved result. Changing a check definition or the checklist structure requires confirmation again.
+
+> A pass means the **agreed checks** passed. It does not mean every requirement was covered. The plugin does not report a completion percentage.
+
+Without `watch`, the fingerprint covers tracked and non-ignored untracked files, excluding the checklist. With `watch`, it covers the declared matching files. Include relevant configuration and lockfiles; the plugin does not infer dependencies. [File watching and trust limits](https://github.com/BeforeLanding/dsh-done-check/blob/main/docs/USAGE.md#watch-the-right-files).
+
+## Walkthrough
+
+Follow the actual commands: preview the list, confirm, inspect a CSV failure, verify the fix, record a manual check, and revisit results after an edit.
+
+<p align="center">
+  <a href="https://github.com/BeforeLanding/dsh-done-check/blob/main/docs/video/walkthrough.mp4"><img src="https://raw.githubusercontent.com/BeforeLanding/dsh-done-check/main/docs/images/demo-cover.jpg" width="760" alt="Play the 72-second CSV export walkthrough, with Chinese narration and bilingual captions."></a>
 </p>
 
-<p align="center"><strong><a href="https://github.com/BeforeLanding/dsh-done-check/blob/main/docs/video/dsh-done-check-film.mp4">▶ Watch the film · 1:04 · 1080p</a></strong><br>Chinese narration · bilingual subtitles · real session footage<br><a href="https://raw.githubusercontent.com/BeforeLanding/dsh-done-check/main/docs/video/dsh-done-check-film.mp4">Download MP4</a> · <a href="https://github.com/BeforeLanding/dsh-done-check/blob/main/docs/video/README.md">Transcript &amp; source footage</a></p>
+<p align="center"><a href="https://github.com/BeforeLanding/dsh-done-check/blob/main/docs/video/walkthrough.mp4"><strong>▶ Watch · 1:12 · 1080p</strong></a><br>
+Chinese narration · English and Chinese captions<br>
+<a href="https://raw.githubusercontent.com/BeforeLanding/dsh-done-check/main/docs/video/walkthrough.mp4">Download MP4</a> · <a href="https://github.com/BeforeLanding/dsh-done-check/blob/main/docs/video/README.md">Chapters, transcript and source footage</a></p>
 
-## Read the result, not the promise
+## Reference
 
-The output tells you **what was checked, what still needs attention, and what to do next**. Details keep the command, exit code, output, time and content fingerprint behind each automatic result.
+- `/done-check status` — read the current status without running checks.
+- `/done-check details [n]` — inspect commands, output and changed files.
+- `/done-check run` — force a re-run of all confirmed automatic checks, including unchanged failed ones.
+- [All commands and agent tools](https://github.com/BeforeLanding/dsh-done-check/blob/main/docs/USAGE.md#command-reference) · [Checklist format](https://github.com/BeforeLanding/dsh-done-check/blob/main/docs/USAGE.md#write-a-checklist) · [中文指南](https://github.com/BeforeLanding/dsh-done-check/blob/main/docs/USAGE.zh-CN.md)
 
-<details>
-<summary><strong>Open the evidence gallery — failure, human acceptance, stale result</strong></summary>
+Checklist confirmation does not bypass DSH command permissions. Checks use your registered shell tool; local executors provide no isolation. This guards against casual changes to checks and verdicts, not an agent with unrestricted shell access. [Trust model](https://github.com/BeforeLanding/dsh-done-check/blob/main/docs/USAGE.md#trust-and-limits).
 
-**A failure with its own report.** Read the command and recorded output with `/done-check details`.
+## Development
 
-![Actual failing check and evidence](https://raw.githubusercontent.com/BeforeLanding/dsh-done-check/main/docs/images/feature-evidence.png)
+```bash
+pnpm install
+pnpm typecheck
+pnpm build
+pnpm test
+```
 
-**A decision the agent cannot make for you.** Automatic checks can pass while a manual item still waits for your verdict.
+**v0.2.0, early release.** Verified on real DSH Web `0.1.5-rc.1` and `0.2.1-rc.5`, with the real `pwsh` tool in its sandbox. See the [changelog](CHANGELOG.md), [design notes (Chinese)](https://github.com/BeforeLanding/dsh-done-check/blob/main/docs/DESIGN.md) and [media build instructions](https://github.com/BeforeLanding/dsh-done-check/blob/main/docs/video/README.md).
 
-![Actual manual acceptance state](https://raw.githubusercontent.com/BeforeLanding/dsh-done-check/main/docs/images/feature-human.png)
+## License
 
-**A result that knows when it is old.** In this recorded scene, three old results need re-checking. The previous exit code is still there as history, alongside the changed source file.
-
-![Actual stale results after code changes](https://raw.githubusercontent.com/BeforeLanding/dsh-done-check/main/docs/images/feature-stale.png)
-
-</details>
-
-> Passing means **the agreed checks passed**. It does not mean every requirement was tested. There is no completion percentage.
-
-## Go deeper
-
-- **[User guide](https://github.com/BeforeLanding/dsh-done-check/blob/main/docs/USAGE.md)** — checklist YAML, file watching, manual checks and source installation.
-- **[Command reference](https://github.com/BeforeLanding/dsh-done-check/blob/main/docs/USAGE.md#command-reference)** — status, evidence, re-runs and agent tools.
-- **[Trust model](https://github.com/BeforeLanding/dsh-done-check/blob/main/docs/USAGE.md#trust-and-limits)** — confirmation, permissions, content fingerprints and unstable runs.
-- **[Design notes (中文)](https://github.com/BeforeLanding/dsh-done-check/blob/main/docs/DESIGN.md)** · **[Changelog](CHANGELOG.md)** — implementation and release history.
-
-Checklist confirmation does not authorize commands: execution follows your DSH shell tool's permission rules. Local executors provide no isolation. The plugin guards against casual changes to checks and verdicts, not a malicious agent with unrestricted shell access.
-
-**v0.2.0 · early release.** Verified on real DSH Web `0.1.5-rc.1` and `0.2.1-rc.5`, using the real `pwsh` tool in its sandbox. Plugin output is currently Chinese; English command aliases are supported.
-
-For development: `pnpm install`, then `pnpm typecheck && pnpm build && pnpm test`. See the [media build guide](https://github.com/BeforeLanding/dsh-done-check/blob/main/docs/video/README.md) to reproduce the visuals and film.
-
----
-
-[MIT](LICENSE) · Built by [BeforeLanding](https://github.com/BeforeLanding)
+[MIT](LICENSE)

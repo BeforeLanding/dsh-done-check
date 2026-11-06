@@ -1,0 +1,31 @@
+WEBVTT
+
+00:00:00.000 --> 00:00:07.000
+Prepare done-check.yaml in the CSV project: two automated tests and one manual check.
+
+00:00:07.000 --> 00:00:14.000
+Preview the three checks and their commands. No tests run during this preview.
+
+00:00:14.000 --> 00:00:20.000
+Review and confirm the checklist. Only the user can confirm it or submit a manual verdict.
+
+00:00:20.000 --> 00:00:28.000
+Run the checks. The CSV escaping test fails, and its original report is shown.
+
+00:00:28.000 --> 00:00:35.000
+Inspect check 2: the original error, executed command and exit code 1 are preserved.
+
+00:00:35.000 --> 00:00:45.000
+Ask the agent to fix escaping, then re-run. Both automated checks pass; the manual item waits.
+
+00:00:45.000 --> 00:00:53.000
+Verify the Chinese filename yourself, then record ok. All three agreed checks now pass.
+
+00:00:53.000 --> 00:01:02.000
+After a source edit, all three old results are stale. Their previous run records remain visible.
+
+00:01:02.000 --> 00:01:08.000
+Re-run against the current code. The manual item still needs your fresh verification.
+
+00:01:08.000 --> 00:01:12.000
+Install the plugin using the README, then use these commands in your DSH chat.
