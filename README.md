@@ -1,39 +1,69 @@
+<div align="center">
+
 # dsh-done-check
 
-English | [中文](https://github.com/BeforeLanding/dsh-done-check/blob/main/README.zh-CN.md)
+**Don't trust "done" — trust the check that ran.**
+
+Executable acceptance checklists for [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness) coding tasks: every "done" is backed by a check that actually ran, and old results are flagged for re-check as soon as the code changes.
 
 [![CI](https://github.com/BeforeLanding/dsh-done-check/actions/workflows/ci.yml/badge.svg)](https://github.com/BeforeLanding/dsh-done-check/actions/workflows/ci.yml)
+[![npm](https://img.shields.io/npm/v/dsh-done-check?color=cb3837&logo=npm)](https://www.npmjs.com/package/dsh-done-check)
+[![license](https://img.shields.io/github/license/BeforeLanding/dsh-done-check)](LICENSE)
+[![dsh](https://img.shields.io/badge/dsh-%3E%3D0.1.5--rc.1%20%3C0.3.0-4d6bfe)](https://github.com/deepseek-ai/deepseek-harness)
+[![node](https://img.shields.io/badge/node-%3E%3D22.19-339933?logo=node.js&logoColor=white)](package.json)
 
-Executable acceptance checklists for [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness) coding tasks: every "done" is backed by a check that actually ran, and old results are flagged for re-check when the code changes.
+English · [简体中文](README.zh-CN.md)
 
-## Demo
+<img src="docs/images/hero.gif" alt="A DSH chat: /done-check runs a real test that fails and quotes its report, the agent fixes toCsv, the re-run passes, and the user confirms the manual check." width="760">
 
-The fields `a,b` and `c` should export as `"a,b",c`. The first `/done-check` run reports `a,b,c` instead: the missing quotes turn two columns into three.
+<sub>A real bug, caught by a real test: the failing report is quoted as-is → the agent fixes it → re-run → you confirm the last, manual check.<br>Recorded in a live DSH web session (status messages are currently in Chinese only).</sub>
 
-![DSH session showing the CSV test failure, both automated checks passing after the fix, and the user confirming the downloaded filename.](docs/images/done-check-demo.gif)
+</div>
 
-After the fix to `toCsv`, both automated checks pass. The last check needs a person to download the file, verify its Chinese filename, and enter `/done-check ok`.
+---
 
-[View the failing test (screenshot)](docs/images/done-check-demo-poster.png) · [Watch from checklist preview (MP4)](docs/images/done-check-demo.mp4)
+## Demo video
 
-> **What it can and cannot tell you**
->
-> - A summary such as "3 checks: 2 passed, 1 awaiting manual confirmation" covers **only the agreed checks**. It does not mean the requirement is fully implemented. The plugin never shows a percentage or a "completion" score.
-> - It guards against an agent casually rewriting the verdict: claiming tests passed, quietly changing a check command, deleting a failing check, or forging a confirmation. It does not stop a malicious agent with an unrestricted shell, which can edit the tests themselves or the files under DSH home.
-> - Confirming a checklist does not authorize running its commands. Checks run on the shell executor of the current DSH composition; `bash-local` / `pwsh-local` provide no isolation, so compose the matching sandbox executor if you need it.
-> - `watch` is a scope you declare, not a dependency graph inferred for you.
+<div align="center">
 
-## Status
+<a href="https://github.com/BeforeLanding/dsh-done-check/blob/main/docs/video/dsh-done-check-demo.mp4"><img src="docs/images/demo-cover.jpg" alt="Watch the 112-second dsh-done-check demo video" width="720"></a>
 
-v0.2.0, an early release. v0.2 redesigns only what you read and type; the verification rules are unchanged. The new output was checked on real DSH web hosts (0.1.5-rc.1 and 0.2.1-rc.5), with checks executed by the real `pwsh` tool inside its sandbox. Supported DSH: `>=0.1.5-rc.1 <0.3.0`. Design: [docs/DESIGN.md](https://github.com/BeforeLanding/dsh-done-check/blob/main/docs/DESIGN.md) (in Chinese). Status messages are currently in Chinese only.
+</div>
 
-## Install
+The full flow in under two minutes, 1080p, in one real session: **preview → confirm → run → inspect the evidence → agent fixes the code → re-run → manual confirmation → results go stale after an edit**.
+
+## Highlights
+
+- **A "done" needs a receipt.** Each check runs for real and records its exit code, output, duration and a fingerprint of the workspace at that moment.
+- **Failures are quoted, not interpreted.** A failed check shows up to three lines of the test's own output as the "test report". The plugin draws no conclusion from them.
+- **The agent cannot grade its own work.** Confirming the checklist and recording manual verdicts can only come from you. The agent can draft, run and read status, but confirmation and manual verdicts are yours, and editing or removing a check forces you to re-confirm.
+- **Results expire with the code.** Any change to the workspace (uncommitted edits included) turns results bound to the old content into `🔄 code changed, re-check`; editing a check asks you to re-confirm.
+- **One command covers the main path.** `/done-check` does the next thing that is due: preview, run, or show the verdict.
+- **Honest about what it did not run.** A check that could not run (permission denied, timeout, executor error) is `⚠️ not run`, never a failure and never a pass.
+
+## Quick start
+
+**Requirements:** DSH `>=0.1.5-rc.1 <0.3.0`, Node.js `>=22.19`, and git.
 
 ```bash
 dsh plugin --profile <your-profile> add dsh-done-check
 ```
 
 From a checkout: `pnpm install && pnpm build`, then `dsh plugin --profile <your-profile> add /path/to/dsh-done-check`.
+
+Then, in a DSH chat:
+
+1. Put a `done-check.yaml` in the project root (or let the agent draft it) — see [How it works](#how-it-works).
+2. `/done-check` to preview, `/done-check 确认` to confirm, `/done-check` to run.
+
+## What it can and cannot tell you
+
+> [!IMPORTANT]
+>
+> - A summary such as "3 checks: 2 passed, 1 awaiting manual confirmation" covers **only the agreed checks**. It does not mean the requirement is fully implemented. The plugin never shows a percentage or a "completion" score.
+> - It guards against an agent casually rewriting the verdict: claiming tests passed, quietly changing a check command, deleting a failing check, or forging a confirmation. It does not stop a malicious agent with an unrestricted shell, which can edit the tests themselves or the files under DSH home.
+> - Confirming a checklist does not authorize running its commands. Checks run on the shell executor of the current DSH composition; `bash-local` / `pwsh-local` provide no isolation, so compose the matching sandbox executor if you need it.
+> - `watch` is a scope you declare, not a dependency graph inferred for you.
 
 ## Commands and tools
 
@@ -60,6 +90,17 @@ Output answers three questions: what was checked, what is still wrong, what to d
 
 ## How it works
 
+```mermaid
+flowchart LR
+    Y["done-check.yaml"] -->|"/done-check"| P["Preview<br>checklist + commands, nothing runs"]
+    P -->|"/done-check confirm<br>(you only)"| C["Confirmed checklist"]
+    C -->|"/done-check"| R["Run through DSH's shell tool<br>exit code · output · duration · fingerprint"]
+    R --> V{"Verdict"}
+    V -->|"manual check"| H["/done-check ok · no<br>(you only)"]
+    V -->|"code changed"| S["🔄 result stale"]
+    S -->|"/done-check"| R
+```
+
 1. Write `done-check.yaml` in the project root (or let the Agent draft it). Name each check by something you can judge, and give manual checks a `how`:
 
    ```yaml
@@ -84,6 +125,10 @@ Output answers three questions: what was checked, what is still wrong, what to d
 3. Checks run through DSH's shell tool; exit code, output, duration and a fingerprint of the workspace at that moment are recorded.
 4. Any change to the workspace (uncommitted edits included) turns results bound to the old content into `🔄 代码已更新，需要重新检查`, and lists the changed files in the details. Editing a check makes it `✏️` and asks you to re-confirm; adding or removing checks or rewording the task asks you to re-confirm the whole list.
 5. A result whose run saw the workspace or definition change is `🔄 检查时代码正在变化，结果不可信`; restoring the files does not revive it.
+
+## Status
+
+v0.2.0, an early release. v0.2 redesigns only what you read and type; the verification rules are unchanged. The new output was checked on real DSH web hosts (0.1.5-rc.1 and 0.2.1-rc.5), with checks executed by the real `pwsh` tool inside its sandbox. Supported DSH: `>=0.1.5-rc.1 <0.3.0`. Design: [docs/DESIGN.md](https://github.com/BeforeLanding/dsh-done-check/blob/main/docs/DESIGN.md) (in Chinese). See the [CHANGELOG](CHANGELOG.md) for release notes.
 
 ## Development
 
