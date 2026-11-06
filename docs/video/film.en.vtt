@@ -1,0 +1,25 @@
+WEBVTT
+
+00:00:00.000 --> 00:00:06.000
+What makes an AI coding task done? Did this CSV actually export correctly?
+
+00:00:06.000 --> 00:00:14.000
+Agree on the checks first: executable tests and a manual check, in one checklist.
+
+00:00:14.000 --> 00:00:21.000
+Only you can confirm the checklist. Read the commands before running them.
+
+00:00:21.000 --> 00:00:29.000
+Missing quotes turn two columns into three. The test report and exit code are preserved.
+
+00:00:29.000 --> 00:00:37.000
+Let the agent fix the failure. Then run the real checks again.
+
+00:00:37.000 --> 00:00:45.000
+The automated checks pass. Verify the Chinese filename yourself, then record your verdict.
+
+00:00:45.000 --> 00:00:55.000
+After code changes, the old manual verdict needs review. These two newer automatic results remain valid.
+
+00:00:55.000 --> 00:01:04.000
+Done needs proof. Install the plugin and make your next task's checks verifiable.

@@ -1,144 +1,104 @@
-<div align="center">
+<p align="right"><a href="README.md">English</a> · <strong>简体中文</strong></p>
 
-# dsh-done-check
+<p align="center">
+  <img src="https://raw.githubusercontent.com/BeforeLanding/dsh-done-check/main/docs/images/readme-banner.zh-CN.svg" width="100%" alt="dsh-done-check — 完成了？拿检查结果来。为 DeepSeek Harness 提供可执行的验收检查。">
+</p>
 
-**别信“完成了”，信真正跑过的检查。**
+<p align="center">
+  <a href="https://www.npmjs.com/package/dsh-done-check"><img src="https://img.shields.io/npm/v/dsh-done-check?style=flat-square&amp;color=ffbd59&amp;label=npm" alt="npm 版本"></a>
+  <a href="https://github.com/BeforeLanding/dsh-done-check/actions/workflows/ci.yml"><img src="https://github.com/BeforeLanding/dsh-done-check/actions/workflows/ci.yml/badge.svg" alt="CI"></a>
+  <a href="https://github.com/BeforeLanding/dsh-done-check/blob/main/LICENSE"><img src="https://img.shields.io/badge/license-MIT-7ee0b8?style=flat-square" alt="MIT 许可证"></a>
+</p>
 
-为 [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness) 编码任务保存可执行的验收清单：每条“已完成”都有真实执行的检查结果，代码一变，旧结果自动标记为需要重验。
+<p align="center">
+  <strong>在 <a href="https://github.com/deepseek-ai/deepseek-harness">DeepSeek Harness</a> 里执行验收检查。<br>命令真实运行，证据随时可查，验收由你决定。</strong>
+</p>
 
-[![CI](https://github.com/BeforeLanding/dsh-done-check/actions/workflows/ci.yml/badge.svg)](https://github.com/BeforeLanding/dsh-done-check/actions/workflows/ci.yml)
-[![npm](https://img.shields.io/npm/v/dsh-done-check?color=cb3837&logo=npm)](https://www.npmjs.com/package/dsh-done-check)
-[![license](https://img.shields.io/github/license/BeforeLanding/dsh-done-check)](LICENSE)
-[![dsh](https://img.shields.io/badge/dsh-%3E%3D0.1.5--rc.1%20%3C0.3.0-4d6bfe)](https://github.com/deepseek-ai/deepseek-harness)
-[![node](https://img.shields.io/badge/node-%3E%3D22.19-339933?logo=node.js&logoColor=white)](package.json)
+<p align="center"><a href="#开始验收">安装使用</a> · <a href="#看一个完整故事">观看演示</a> · <a href="https://github.com/BeforeLanding/dsh-done-check/blob/main/docs/USAGE.zh-CN.md">使用指南</a></p>
 
-[English](README.md) · 简体中文
+<p align="center">
+  <img src="https://raw.githubusercontent.com/BeforeLanding/dsh-done-check/main/docs/images/hero.gif" width="100%" alt="16 秒真实 DSH 输出剪辑：CSV 测试失败、查看执行证据、用户确认人工项，以及代码变化后旧结果过期。">
+</p>
+<p align="center"><sub>一个 CSV bug，一场真实会话，一份可查的验收结果。<br>16 秒预览 · <a href="https://raw.githubusercontent.com/BeforeLanding/dsh-done-check/main/docs/images/hero-poster.png">静态图</a> · 中文界面，双语字幕</sub></p>
 
-<img src="docs/images/hero.gif" alt="DSH 会话：/done-check 执行已确认的检查，真实测试失败，并原样引用测试报告：期望 &quot;a,b&quot;,c，实际 a,b,c。" width="760">
+<table>
+  <tr>
+    <td width="33%" valign="top"><strong>01 / 真正跑一遍。</strong><br><br>真实命令给出结果。失败就引用测试自己的报告；没能运行，就明确说没能运行。</td>
+    <td width="33%" valign="top"><strong>02 / 验收权在你。</strong><br><br>Agent 起草清单、执行检查。你确认约定的内容，亲自决定人工项是否通过。</td>
+    <td width="33%" valign="top"><strong>03 / 代码变，重验收。</strong><br><br>关注的文件一变，旧结果就提示重验。昨天的证据，只对应昨天的文件。</td>
+  </tr>
+</table>
 
-<sub>一个真实的 bug，被真实的测试抓住：<code>/done-check</code> 执行已确认的检查，并原样引用失败报告。<br>完整的“修复并验证”流程见下方视频。录自真实的 DSH 网页会话。</sub>
+## 开始验收
 
-</div>
+**DSH `>=0.1.5-rc.1 <0.3.0` · Node.js `>=22.19` · git 项目**
+
+使用 `dsh web` profile 时：
+
+```bash
+dsh plugin --profile web add dsh-done-check
+```
+
+如果你使用其他 profile，把 `web` 换成当前名称。在项目的 DSH 对话里发送：
+
+> 为当前任务起草并保存 done-check.yaml。使用这个项目里真实存在的测试和命令，名称写清能验证的行为；需要我亲自检查的内容写成人工项，附上 how。让我先预览，再确认清单。
+
+然后逐条操作：
+
+1. **预览** — `/done-check` 展示清单和命令，不运行任何东西。
+2. **确认** — `/done-check 确认` 接受你刚刚看过的那份清单。
+3. **检查** — `/done-check` 执行自动项，告诉你还有什么需要处理。
+
+检查失败，让 Agent 修复测试发现的问题后再验收。人工项由你亲自验证，用 `/done-check ok [序号]` 或 `/done-check no [序号] [备注]` 记录结论；只有一个人工项在等你时，可省略序号。
+
+[自己编写验收清单 →](https://github.com/BeforeLanding/dsh-done-check/blob/main/docs/USAGE.zh-CN.md#编写清单)
+
+## 看一个完整故事
+
+**完成，要有检查为证。** 一个 CSV 转义 bug，从真实失败，到修复后重验，再到修改代码后需要重做的人工验收。
+
+<p align="center">
+  <a href="https://github.com/BeforeLanding/dsh-done-check/blob/main/docs/video/dsh-done-check-film.mp4"><img src="https://raw.githubusercontent.com/BeforeLanding/dsh-done-check/main/docs/images/demo-cover.jpg" width="100%" alt="播放全新 64 秒 dsh-done-check 演示：完成，要有检查为证。"></a>
+</p>
+
+<p align="center"><strong><a href="https://github.com/BeforeLanding/dsh-done-check/blob/main/docs/video/dsh-done-check-film.mp4">▶ 观看演示 · 1:04 · 1080p</a></strong><br>中文旁白 · 双语字幕 · 真实会话素材<br><a href="https://raw.githubusercontent.com/BeforeLanding/dsh-done-check/main/docs/video/dsh-done-check-film.mp4">下载 MP4</a> · <a href="https://github.com/BeforeLanding/dsh-done-check/blob/main/docs/video/README.md">脚本、字幕与原始素材</a></p>
+
+## 看结果，不只听承诺
+
+输出回答三个问题：**检查了什么、还有什么问题、现在该做什么**。每条自动结果背后，都能查到命令、退出码、输出、时间和文件内容指纹。
+
+<details>
+<summary><strong>展开真实证据画廊 — 失败报告、人工验收、结果过期</strong></summary>
+
+**失败，有原始报告。** 用 `/done-check 详情` 查看命令与执行输出。
+
+![真实失败检查与证据](https://raw.githubusercontent.com/BeforeLanding/dsh-done-check/main/docs/images/feature-evidence.png)
+
+**有些结论，Agent 不能替你给。** 自动项可以通过，人工项仍然等待你验证。
+
+![真实人工验收状态](https://raw.githubusercontent.com/BeforeLanding/dsh-done-check/main/docs/images/feature-human.png)
+
+**旧结果，也知道自己过期了。** 这段实录里，三项旧结果都需要重验。原来的退出码仍作为历史保留，旁边列出发生变化的源码文件。
+
+![代码变更后旧结果过期的真实输出](https://raw.githubusercontent.com/BeforeLanding/dsh-done-check/main/docs/images/feature-stale.png)
+
+</details>
+
+> 通过只代表**约定的检查通过了**，不代表需求里的每一点都被检查到。这里没有“完成度”百分比。
+
+## 继续了解
+
+- **[使用指南](https://github.com/BeforeLanding/dsh-done-check/blob/main/docs/USAGE.zh-CN.md)** — YAML 清单、文件关注范围、人工项与源码安装。
+- **[命令参考](https://github.com/BeforeLanding/dsh-done-check/blob/main/docs/USAGE.zh-CN.md#命令参考)** — 状态、证据、重新检查与 Agent 工具。
+- **[信任边界](https://github.com/BeforeLanding/dsh-done-check/blob/main/docs/USAGE.zh-CN.md#信任与边界)** — 确认、权限、内容指纹，以及不可信的运行结果。
+- **[设计文档](https://github.com/BeforeLanding/dsh-done-check/blob/main/docs/DESIGN.md)** · **[更新日志](CHANGELOG.md)** — 实现方式与版本记录。
+
+确认清单不等于授权执行命令：检查仍受当前 DSH shell 工具的权限规则约束。本地执行器不提供隔离。插件防的是随手改动检查和结论，不防拥有不受限 shell 的恶意 Agent。
+
+**v0.2.0 · 早期版本。** 已在真实 DSH Web `0.1.5-rc.1` 和 `0.2.1-rc.5` 上验证，由真实 `pwsh` 工具在沙箱中执行检查。目前输出中文，命令支持英文别名。
+
+开发：先 `pnpm install`，再 `pnpm typecheck && pnpm build && pnpm test`。图片与视频均可按[素材制作指南](https://github.com/BeforeLanding/dsh-done-check/blob/main/docs/video/README.md)重建。
 
 ---
 
-## 演示视频
-
-<div align="center">
-
-<a href="https://youtu.be/kIWweTUUfP0"><img src="docs/images/demo-cover.jpg" alt="在 YouTube 观看 dsh-done-check 演示视频" width="720"></a>
-
-</div>
-
-一个真实会话里的完整流程，不到两分钟、1080p：**预览 → 确认 → 执行 → 查看证据 → Agent 修复代码 → 重新检查 → 人工确认 → 改代码后结果自动作废**。也可以[下载 MP4](docs/video/dsh-done-check-demo.mp4)。
-
-## 亮点
-
-- **“完成”必须有凭据。** 每项检查真实执行，并记录退出码、输出、耗时和当时的工作区指纹。
-- **失败原文引用，不做推断。** 检查未通过时，原文摘录测试自己输出的最多三行，标为“测试报告”，插件不据此下任何结论。
-- **Agent 不能给自己打分。** 确认清单和记录人工结论只能由你完成。Agent 可以起草、执行、读取状态，但确认和人工结论归你，改动或删除检查项会强制你重新确认。
-- **结果随代码过期。** 工作区内容一变（包括未提交的修改），绑定旧内容的结果就显示为 `🔄 代码已更新，需要重新检查`；检查项被改动则要求你重新确认。
-- **一个命令走完主路径。** `/done-check` 按当前状态做下一件该做的事：预览、执行或给出结论。
-- **没跑的就说没跑。** 没能运行的检查（权限拒绝、超时、执行环境出错）显示为 `⚠️ 没能运行`，既不当作失败，也绝不当作通过。
-
-## 快速开始
-
-**环境要求：** DSH `>=0.1.5-rc.1 <0.3.0`、Node.js `>=22.19`、git。
-
-```bash
-dsh plugin --profile <你的 profile> add dsh-done-check
-```
-
-从源码安装：先 `pnpm install && pnpm build`，再 `dsh plugin --profile <你的 profile> add /path/to/dsh-done-check`。
-
-然后在 DSH 对话里：
-
-1. 在项目根目录放一份 `done-check.yaml`（或让 Agent 起草），见[工作方式](#工作方式)。
-2. `/done-check` 预览，`/done-check 确认` 确认，`/done-check` 执行。
-
-## 它能说明什么，不能说明什么
-
-> [!IMPORTANT]
->
-> - “3 项验收中，2 项通过、1 项待人工确认”只表示**约定的检查**的结果，不表示需求已完整实现。插件不显示百分比或“完成度”。
-> - 防的是 Agent 随手改写结论：自己宣布测试通过、偷改检查命令、删掉失败项、伪造确认记录。不防拥有不受限 shell 的恶意 Agent，它可以改测试本身，也可以改 DSH home 下的文件。
-> - 确认清单不等于授权执行其中的命令。检查命令由当前 DSH 组合的 shell 执行器运行；`bash-local`/`pwsh-local` 不做任何隔离，需要隔离请组合对应的 sandbox 执行器。
-> - `watch` 是你声明的范围，不是自动分析出的依赖关系。
-
-## 命令与工具
-
-主路径只需要一个命令：**`/done-check` 按当前状态做下一件该做的事**——预览清单、执行检查或给出结论。
-
-| | 谁用 | 作用 |
-|---|---|---|
-| `/done-check` | 你 | 清单还没确认 → 展示清单**和将要执行的命令**，不执行任何东西。已确认 → 执行“还没检查”或“代码已更新”的自动项，再给摘要。 |
-| `/done-check 确认`（`confirm`） | **仅你** | 确认你刚看过的清单。只对最近一次预览的那份清单生效，否则重新展示预览。 |
-| `/done-check ok [序号]` / `no [序号] [备注]` | **仅你** | 记录人工项结论。只有一个人工项在等你时可以不写序号。 |
-| `/done-check 详情 [序号]`（`details`） | 你 | 命令、退出码、执行时间、输出末尾、变化的文件 |
-| `/done-check 全部`（`all`） | 你 | 每一项的状态和详情（含已通过的） |
-| `/done-check 技术详情 [序号]`（`tech`） | 你 | 执行器与沙箱模式、完整指纹、定义哈希、日志路径 |
-| `/done-check 重新检查`（`run`） | 你 | 强制重跑全部自动检查 |
-| `done_check_draft` | Agent | 校验起草的清单（由 Agent 用自己的文件工具保存） |
-| `done_check_run` | Agent | 执行已确认的自动检查 |
-| `done_check_status` | Agent | 读取状态（返回 `verdict` 和 `nextStep`） |
-
-序号是摘要里的排列顺序，内部 ID 仍然可用。`show`、`pass`、`fail` 作为旧别名再保留一个版本。
-
-输出只回答三个问题：检查了什么、还有什么问题、现在该做什么。第一行永远是一句完整结论，例如 `❌ CSV 导出还有 1 项检查未通过`。检查未通过时，会原文摘录测试自己输出的最多三行，标为“测试报告”，插件不做任何推断。**没能运行**的检查（权限拒绝、超时、执行环境出错）显示为 `⚠️ 没能运行`，既不当作失败，也绝不当作通过。
-
-**确认不等于授权执行。** 确认之后输入 `/done-check` 就会执行已确认的命令，仍按你当前会话的权限规则。每条命令都交给你的 DSH 组合中已注册的 shell 工具（`pwsh`/`bash`）执行，所以你的审批提示都会生效；被拒绝的命令不记录证据。
-
-## 工作方式
-
-```mermaid
-flowchart LR
-    Y["done-check.yaml"] -->|"/done-check"| P["预览<br>清单 + 将执行的命令，不运行任何东西"]
-    P -->|"/done-check 确认<br>（仅你）"| C["已确认的清单"]
-    C -->|"/done-check"| R["经 DSH 的 shell 工具执行<br>退出码 · 输出 · 耗时 · 指纹"]
-    R --> V{"结论"}
-    V -->|"人工项"| H["/done-check ok · no<br>（仅你）"]
-    V -->|"代码变了"| S["🔄 结果作废"]
-    S -->|"/done-check"| R
-```
-
-1. 在项目根目录写 `done-check.yaml`（或让 Agent 起草）。检查名称用你能判断的行为来写，人工项写上 `how`：
-
-   ```yaml
-   version: 1
-   task: CSV 导出
-   checks:
-     - id: export-tests
-       name: 导出内容与所选数据一致
-       run: node test/export.test.mjs
-       watch: ["src/**", "test/**"]
-     - id: escape-tests
-       name: 含逗号和换行的数据能正确导出
-       run: node test/escape.test.mjs
-       watch: ["src/**", "test/**"]
-     - id: zh-filename
-       name: 中文文件名可以正常下载
-       manual: true
-       how: 在浏览器里导出一个名为“报表”的文件，确认文件名没有乱码
-   ```
-
-2. 输入 `/done-check` 预览，用 `/done-check 确认` 确认。确认和人工结论只能由你完成，Agent 做不到。
-3. 检查经由 DSH 的 shell 工具真实运行，记录退出码、输出、耗时和当时的工作区指纹。
-4. 工作区内容一变（包括未提交的修改），绑定旧内容的结果就显示为 `🔄 代码已更新，需要重新检查`，详情里列出变化的文件；清单里某项被改，该项显示 `✏️` 并要求你重新确认；增删检查项或改任务描述，整份清单要求重新确认。
-5. 执行期间工作区或定义发生变化的结果显示为 `🔄 检查时代码正在变化，结果不可信`，把文件改回去也不能恢复。
-
-## 状态
-
-v0.2.0，早期版本。v0.2 只重做了你看到和输入的这一层，验证规则没有改动。新输出已在真实的 DSH Web 宿主（0.1.5-rc.1 和 0.2.1-rc.5）上验证，检查由真实的 `pwsh` 工具在沙箱中执行。支持的 DSH 版本：`>=0.1.5-rc.1 <0.3.0`。设计见 [docs/DESIGN.md](https://github.com/BeforeLanding/dsh-done-check/blob/main/docs/DESIGN.md)；版本说明见 [CHANGELOG](CHANGELOG.md)。
-
-## 开发
-
-```bash
-pnpm install
-pnpm test
-```
-
-需要 Node.js ≥ 22.19 和 git。
-
-## 许可证
-
-MIT
+[MIT](LICENSE) · 作者 [BeforeLanding](https://github.com/BeforeLanding)
