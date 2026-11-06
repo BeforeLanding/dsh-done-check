@@ -26,11 +26,11 @@
 
 <div align="center">
 
-<a href="https://github.com/BeforeLanding/dsh-done-check/blob/main/docs/video/dsh-done-check-demo.mp4"><img src="docs/images/demo-cover.jpg" alt="观看 112 秒的 dsh-done-check 演示视频" width="720"></a>
+<a href="https://youtu.be/kIWweTUUfP0"><img src="docs/images/demo-cover.jpg" alt="在 YouTube 观看 dsh-done-check 演示视频" width="720"></a>
 
 </div>
 
-一个真实会话里的完整流程，不到两分钟、1080p：**预览 → 确认 → 执行 → 查看证据 → Agent 修复代码 → 重新检查 → 人工确认 → 改代码后结果自动作废**。
+一个真实会话里的完整流程，不到两分钟、1080p：**预览 → 确认 → 执行 → 查看证据 → Agent 修复代码 → 重新检查 → 人工确认 → 改代码后结果自动作废**。也可以[下载 MP4](docs/video/dsh-done-check-demo.mp4)。
 
 ## 亮点
 

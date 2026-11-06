@@ -26,11 +26,11 @@ English · [简体中文](README.zh-CN.md)
 
 <div align="center">
 
-<a href="https://github.com/BeforeLanding/dsh-done-check/blob/main/docs/video/dsh-done-check-demo.mp4"><img src="docs/images/demo-cover.jpg" alt="Watch the 112-second dsh-done-check demo video" width="720"></a>
+<a href="https://youtu.be/kIWweTUUfP0"><img src="docs/images/demo-cover.jpg" alt="Watch the dsh-done-check demo video on YouTube" width="720"></a>
 
 </div>
 
-The full flow in under two minutes, 1080p, in one real session: **preview → confirm → run → inspect the evidence → agent fixes the code → re-run → manual confirmation → results go stale after an edit**.
+The full flow in under two minutes, 1080p, in one real session: **preview → confirm → run → inspect the evidence → agent fixes the code → re-run → manual confirmation → results go stale after an edit**. Prefer a file? [Download the MP4](docs/video/dsh-done-check-demo.mp4).
 
 ## Highlights
 
