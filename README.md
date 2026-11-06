@@ -13,7 +13,7 @@
 </p>
 
 <p align="center">English · <a href="README.zh-CN.md">简体中文</a><br>
-<a href="#install">Install</a> · <a href="#quick-start">Quick start</a> · <a href="#try-the-example">Runnable example</a> · <a href="#walkthrough">Video</a></p>
+<a href="#install">Install</a> · <a href="#walkthrough">Watch demo</a> · <a href="#quick-start">Quick start</a> · <a href="#try-the-example">Runnable example</a></p>
 
 Keep a task's agreed checks in `done-check.yaml`. The plugin runs them through DSH, records the command and its result, and marks old results for re-checking when the watched files change. You confirm the checklist and decide the manual items.
 
@@ -27,10 +27,27 @@ dsh plugin --profile web add dsh-done-check
 
 For another CLI-managed profile, replace `web` with its name. Follow your host's reload or restart prompt. [Install from source](https://github.com/BeforeLanding/dsh-done-check/blob/main/docs/USAGE.md#install).
 
+## Walkthrough
+
+Follow the actual commands: preview the list, confirm, inspect a CSV failure, verify the fix, record a manual check, and revisit results after an edit.
+
+<p align="center">
+  <a href="https://youtu.be/CJw7eL7v4bw"><img src="https://raw.githubusercontent.com/BeforeLanding/dsh-done-check/main/docs/images/demo-cover.jpg" width="760" alt="Play the 72-second CSV export walkthrough, with Chinese narration and bilingual captions."></a>
+</p>
+
+<p align="center"><a href="https://youtu.be/CJw7eL7v4bw"><strong>▶ Watch on YouTube · 1:12 · 1080p</strong></a><br>
+Chinese narration · English and Chinese captions<br>
+<a href="https://raw.githubusercontent.com/BeforeLanding/dsh-done-check/main/docs/video/walkthrough.mp4">Download MP4</a> · <a href="https://github.com/BeforeLanding/dsh-done-check/blob/main/docs/video/README.md">Chapters, transcript and source footage</a></p>
+
+<details>
+<summary>18-second preview (GIF)</summary>
+
 <p align="center">
   <img src="https://raw.githubusercontent.com/BeforeLanding/dsh-done-check/main/docs/images/hero.gif" width="900" alt="Real DSH session: preview a CSV checklist, confirm it, run a failing test, inspect evidence, record a manual verdict, then see results become stale after an edit.">
 </p>
-<p align="center"><sub>18-second edit of a real DSH session. Chinese UI, bilingual step labels.<br><a href="#walkthrough">Watch the full walkthrough</a> · <a href="https://raw.githubusercontent.com/BeforeLanding/dsh-done-check/main/docs/images/hero-poster.png">View a still image</a></sub></p>
+<p align="center"><sub>18-second edit of a real DSH session. Chinese UI, bilingual step labels.<br><a href="https://youtu.be/CJw7eL7v4bw">Full video on YouTube</a> · <a href="https://raw.githubusercontent.com/BeforeLanding/dsh-done-check/main/docs/images/hero-poster.png">View a still image</a></sub></p>
+
+</details>
 
 ## Quick start
 
@@ -58,11 +75,16 @@ Plugin output is currently Chinese. Commands accept both English and Chinese ali
 
 The [CSV export example](https://github.com/BeforeLanding/dsh-done-check/tree/main/examples/csv-export) includes a deliberately broken exporter, two executable checks, a manual check and a supplied fix. It needs only Node.js and git; no dependency installation or API key is needed to run its tests.
 
+<details>
+<summary>Clone and create a standalone demo</summary>
+
 ```bash
 git clone https://github.com/BeforeLanding/dsh-done-check.git
 cd dsh-done-check
 node examples/csv-export/demo.mjs setup
 ```
+
+</details>
 
 The setup command prints a new standalone git directory and the next commands. Open a DSH session there, then follow the example's README to reproduce **failure → fix → pass → stale**. If you already have this checkout, only run the setup command. The example is a reproducible companion to the recorded CSV scenario; the video uses the original session footage.
 
@@ -76,18 +98,6 @@ The setup command prints a new standalone git directory and the next commands. O
 > A pass means the **agreed checks** passed. It does not mean every requirement was covered. The plugin does not report a completion percentage.
 
 Without `watch`, the fingerprint covers tracked and non-ignored untracked files, excluding the checklist. With `watch`, it covers the declared matching files. Include relevant configuration and lockfiles; the plugin does not infer dependencies. [File watching and trust limits](https://github.com/BeforeLanding/dsh-done-check/blob/main/docs/USAGE.md#watch-the-right-files).
-
-## Walkthrough
-
-Follow the actual commands: preview the list, confirm, inspect a CSV failure, verify the fix, record a manual check, and revisit results after an edit.
-
-<p align="center">
-  <a href="https://github.com/BeforeLanding/dsh-done-check/blob/main/docs/video/walkthrough.mp4"><img src="https://raw.githubusercontent.com/BeforeLanding/dsh-done-check/main/docs/images/demo-cover.jpg" width="760" alt="Play the 72-second CSV export walkthrough, with Chinese narration and bilingual captions."></a>
-</p>
-
-<p align="center"><a href="https://github.com/BeforeLanding/dsh-done-check/blob/main/docs/video/walkthrough.mp4"><strong>▶ Watch · 1:12 · 1080p</strong></a><br>
-Chinese narration · English and Chinese captions<br>
-<a href="https://raw.githubusercontent.com/BeforeLanding/dsh-done-check/main/docs/video/walkthrough.mp4">Download MP4</a> · <a href="https://github.com/BeforeLanding/dsh-done-check/blob/main/docs/video/README.md">Chapters, transcript and source footage</a></p>
 
 ## Reference
 

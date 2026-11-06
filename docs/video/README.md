@@ -1,6 +1,8 @@
 # Demo media
 
-[`walkthrough.mp4`](walkthrough.mp4) is the README usage tutorial:
+[Watch the usage tutorial on YouTube](https://youtu.be/CJw7eL7v4bw).
+The README cover and play button open this video;
+[`walkthrough.mp4`](walkthrough.mp4) is the downloadable repository copy:
 **72 seconds / 1:12, 1920 × 1080, H.264 at 24 fps**, with Chinese system
 narration and bilingual subtitles. It follows a CSV acceptance task in order,
 from a prepared checklist to execution, a failed test, repair, manual acceptance,
@@ -120,7 +122,9 @@ removed after completion. The optional contact sheet is saved in its parent
 directory. Font and encoder versions can affect exact output bytes. Check each
 chapter visually after changing source windows or crop rectangles.
 
-GitHub README uses the GIF inline and a linked cover image for video. MP4 links
-may open a file preview or download depending on the client. README image URLs
+GitHub README uses a linked cover image for YouTube playback, with the GIF in
+an expandable preview. The MP4 remains an alternative download for readers who
+cannot use YouTube. MP4 links may open a file preview or download depending on
+the client. README image URLs
 are absolute raw GitHub URLs so they also work in the npm package README after
 the changes reach `main`; media binaries are excluded from the npm package.
