@@ -71,7 +71,7 @@ export async function loadChecklist(root: string): Promise<Checklist> {
 }
 
 const nowOf = (env: ServiceEnv) => (env.now ?? (() => new Date()))()
-const snapshotOf = (env: ServiceEnv) => snapshotWorkspace(env.root, env.listFiles ?? gitListFiles)
+const snapshotOf = (env: ServiceEnv, checks: readonly CheckDefinition[]) => snapshotWorkspace(env.root, env.listFiles ?? gitListFiles, checks.map((c) => c.watch))
 
 function coverageErrors(checks: readonly CheckDefinition[], snapshot: WorkspaceSnapshot): string[] {
   return checks.flatMap((c) => {
@@ -93,7 +93,7 @@ export async function confirm(env: ServiceEnv, expectedPreview?: string): Promis
   if (expectedPreview !== undefined && previewDigest(checklist) !== expectedPreview) {
     throw new PreviewMismatchError('清单在你预览之后又变了')
   }
-  const errors = coverageErrors(checklist.checks, await snapshotOf(env))
+  const errors = coverageErrors(checklist.checks, await snapshotOf(env, checklist.checks))
   if (errors.length) throw new DoneCheckError(`无法确认：\n- ${errors.join('\n- ')}`)
   const confirmation: ChecklistConfirmation = {
     task: checklist.task,
@@ -138,7 +138,7 @@ export async function view(env: ServiceEnv): Promise<View> {
   const state = loaded.state
   let snapshot: WorkspaceSnapshot | { error: string }
   try {
-    snapshot = await snapshotOf(env)
+    snapshot = await snapshotOf(env, checklist.checks)
   } catch (err) {
     snapshot = { error: (err as Error).message }
   }
@@ -193,7 +193,10 @@ export interface RunSummary {
 }
 
 /** Preconditions shared by running and deciding: confirmed, unchanged, watch covers files. */
-function preflight(check: CheckDefinition, confirmation: ChecklistConfirmation | null, snapshot: WorkspaceSnapshot): string | null {
+function preflight(check: CheckDefinition, checklist: Checklist, confirmation: ChecklistConfirmation | null, snapshot: WorkspaceSnapshot): string | null {
+  if (confirmation && (structureHash(checklist) !== confirmation.structureHash || checklist.checks.some((c) => confirmation.definitions[c.id] !== definitionHash(c)))) {
+    return '清单结构或检查定义已改动，请先预览，再重新确认整份清单'
+  }
   const confirmed = confirmation?.definitions[check.id]
   if (confirmed === undefined) return '尚未确认，请用户先查看并确认清单（/done-check）'
   if (confirmed !== definitionHash(check)) return '确认后定义已改动，请用户重新确认'
@@ -222,8 +225,8 @@ export async function runChecks(env: ServiceEnv, exec: Exec, opts: { ids?: reado
     }
     const loaded = await env.store.load(env.root)
     if (!loaded.ok) throw new DoneCheckError(`证据状态无法读取：${loaded.reason}`)
-    const before = await snapshotOf(env)
-    const blocked = preflight(check, loaded.state.confirmation, before)
+    const before = await snapshotOf(env, [check])
+    const blocked = preflight(check, await loadChecklist(env.root), loaded.state.confirmation, before)
     if (blocked) {
       skipped.push({ checkId: check.id, kind: 'blocked', reason: blocked })
       continue
@@ -272,7 +275,7 @@ export async function runChecks(env: ServiceEnv, exec: Exec, opts: { ids?: reado
         continue
       }
 
-      const fpAfter = fingerprintFor(await snapshotOf(env), check.watch)
+      const fpAfter = fingerprintFor(await snapshotOf(env, [check]), check.watch)
       const defAfter = await loadChecklist(env.root)
         .then((l) => l.checks.find((c) => c.id === check.id))
         .then((c) => (c ? definitionHash(c) : null), () => null)
@@ -308,8 +311,8 @@ export async function decide(env: ServiceEnv, checkId: string, outcome: 'passed'
   if (!check.manual) throw new DoneCheckError(`${checkId} 是自动检查，请用 /done-check ok 或 /done-check no 记录结论`)
   const loaded = await env.store.load(env.root)
   if (!loaded.ok) throw new DoneCheckError(`证据状态无法读取：${loaded.reason}`)
-  const snapshot = await snapshotOf(env)
-  const blocked = preflight(check, loaded.state.confirmation, snapshot)
+  const snapshot = await snapshotOf(env, [check])
+  const blocked = preflight(check, checklist, loaded.state.confirmation, snapshot)
   if (blocked) throw new DoneCheckError(`${checkId}: ${blocked}`)
   const now = nowOf(env)
   const record: ManualDecision = {

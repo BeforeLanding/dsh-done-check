@@ -1,5 +1,7 @@
 import { execFile } from 'node:child_process'
-import { lstat, readFile, readlink } from 'node:fs/promises'
+import { lstat, readlink } from 'node:fs/promises'
+import { createReadStream } from 'node:fs'
+import { createHash } from 'node:crypto'
 import { join } from 'node:path'
 import { promisify } from 'node:util'
 import picomatch from 'picomatch'
@@ -35,12 +37,23 @@ export const gitListFiles: ListFiles = async (root) => {
   }
 }
 
-export async function snapshotWorkspace(root: string, listFiles: ListFiles = gitListFiles): Promise<WorkspaceSnapshot> {
+export async function snapshotWorkspace(root: string, listFiles: ListFiles = gitListFiles, watches?: readonly (readonly string[])[]): Promise<WorkspaceSnapshot> {
+  const wholeWorkspace = watches === undefined || watches.some((scope) => scope.length === 0)
+  const match = wholeWorkspace ? () => true : picomatch(watches.flatMap((scope) => [...scope]), { dot: true })
   const paths = (await listFiles(root))
     .map((p) => p.replaceAll('\\', '/'))
-    .filter((p) => p !== CHECKLIST_FILE)
-  const entries = await Promise.all(paths.map(async (p) => [p, await hashFile(join(root, p))] as const))
-  const present = entries.filter((e): e is readonly [string, string] => e[1] !== null)
+    .filter((p) => p !== CHECKLIST_FILE && match(p))
+  const present: [string, string][] = []
+  let next = 0
+  // Bound open files and stream their content instead of buffering entire files.
+  await Promise.all(Array.from({ length: Math.min(8, paths.length) }, async () => {
+    for (;;) {
+      const path = paths[next++]
+      if (path === undefined) return
+      const digest = await hashFile(join(root, path))
+      if (digest !== null) present.push([path, digest])
+    }
+  }))
   return new Map(present.sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0)))
 }
 
@@ -56,7 +69,9 @@ async function hashFile(abs: string): Promise<string | null> {
     const st = await lstat(abs)
     if (st.isSymbolicLink()) return sha256(`symlink:${await readlink(abs)}`)
     if (!st.isFile()) return null
-    return sha256(await readFile(abs))
+    const digest = createHash('sha256')
+    for await (const chunk of createReadStream(abs)) digest.update(chunk)
+    return digest.digest('hex')
   } catch (err) {
     if ((err as NodeJS.ErrnoException).code === 'ENOENT') return null
     throw err

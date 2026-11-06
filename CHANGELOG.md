@@ -1,5 +1,16 @@
 # Changelog
 
+## 0.2.1 — Unreleased
+
+- Validate state and run records before using them as evidence. Missing fields, inconsistent outcomes, wrong check/type associations and mismatched fingerprints become unreadable/unknown; corrupt state is never overwritten. Optional fields from older valid records remain supported.
+- Bind previews to the viewing session so another session cannot authorize confirmation.
+- Apply whole-checklist confirmation guards in the service layer: added/deleted checks, task changes and definition edits block both user commands and agent runs until re-confirmed.
+- Filter watched paths before reading content. Hash files as streams, with at most eight readers, without metadata-based caches that could hide content changes.
+- Add `/done-check init` to draft baseline checks from existing package scripts plus a manual review. It neither executes nor confirms commands and never overwrites a checklist.
+- Add session-scoped `/done-check lang en|zh` and a plugin `language` default. English preview, verdicts, evidence, status and help preserve user-authored content and raw reports.
+- Add a real-process CSV example regression and installed-tarball smoke checks using official DSH command/tool/system-prompt runtimes on Linux and Windows. The smoke executor is a test-only process tool; no model or API key is used.
+- Explicitly allow the previously tested DSH `0.2.1-rc.5` in peer/engine ranges: npm does not include later prerelease tuples in the original broad comparator range. CI pairs DSH `0.1.5-rc.3` with Cordis `4.0.2`, and DSH `0.2.1-rc.5` with Cordis `4.0.5`.
+
 ## 0.2.0 — 2026-11-05
 
 Redesigns the user-facing layer only. The verification rules are unchanged (user-only confirmation and manual verdicts, definition/structure hashes, content fingerprint, unstable runs never revived, shell dispatch through the permission pipeline), and every 0.1 test still passes unmodified. Existing confirmations and evidence stay valid; nothing to migrate.

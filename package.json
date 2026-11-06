@@ -1,6 +1,6 @@
 {
   "name": "dsh-done-check",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "description": "Executable acceptance checklists for DeepSeek Harness coding tasks: every \"done\" has a recorded check result, and results go stale when the code changes.",
   "type": "module",
   "license": "MIT",
@@ -44,7 +44,7 @@
   ],
   "engines": {
     "node": ">=22.19",
-    "dsh": ">=0.1.5-rc.1 <0.3.0"
+    "dsh": ">=0.1.5-rc.1 <0.3.0 || 0.2.1-rc.5"
   },
   "dsh": {
     "bundle": {
@@ -55,6 +55,8 @@
     "build": "tsc -p tsconfig.build.json",
     "typecheck": "tsc --noEmit",
     "test": "node --test \"test/**/*.test.ts\"",
+    "test:example": "node scripts/check-example.mjs",
+    "smoke:package": "node scripts/smoke-package.mjs",
     "prepublishOnly": "pnpm typecheck && pnpm build && pnpm test"
   },
   "dependencies": {
@@ -63,9 +65,9 @@
   },
   "peerDependencies": {
     "@deepseek-ai/cordis": "^4.0.0",
-    "@deepseek-ai/dsh-commands": ">=0.1.5-rc.1 <0.3.0",
-    "@deepseek-ai/dsh-home-paths": ">=0.1.5-rc.1 <0.3.0",
-    "@deepseek-ai/dsh-tools": ">=0.1.5-rc.1 <0.3.0"
+    "@deepseek-ai/dsh-commands": ">=0.1.5-rc.1 <0.3.0 || 0.2.1-rc.5",
+    "@deepseek-ai/dsh-home-paths": ">=0.1.5-rc.1 <0.3.0 || 0.2.1-rc.5",
+    "@deepseek-ai/dsh-tools": ">=0.1.5-rc.1 <0.3.0 || 0.2.1-rc.5"
   },
   "devDependencies": {
     "@deepseek-ai/cordis": "4.0.2",

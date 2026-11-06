@@ -13,6 +13,8 @@ import type {} from '@deepseek-ai/dsh-commands'
 import { dshHomePath } from '@deepseek-ai/dsh-home-paths'
 import { defineTool } from '@deepseek-ai/dsh-tools'
 import { CHECKLIST_FILE, parseChecklist, serializeChecklist } from '../core/checklist.ts'
+import { initializeChecklist } from '../core/init.ts'
+import { ENGLISH_HELP, englishLabel, englishVerdict, renderEnglish } from './english.ts'
 import { fingerprintFor, snapshotWorkspace, watchCoverageError } from '../core/fingerprint.ts'
 import {
   DoneCheckError, PreviewMismatchError, type ServiceEnv, type View, confirm, decide, previewDigest, runChecks, view,
@@ -55,14 +57,14 @@ export async function projectRootFor(agent: unknown, workingDirectory?: WorkingD
   }
 }
 
-function statusValue(v: View, notRun?: NotRunReasons) {
-  const verdict = verdictOf(v, notRun)
+function statusValue(v: View, notRun?: NotRunReasons, language: 'en' | 'zh' = 'zh') {
+  const verdict = language === 'en' ? englishVerdict(v, notRun) : verdictOf(v, notRun)
   return {
     verdict: verdict.headline,
     nextStep: verdict.nextStep,
     structure: v.report.structure,
     checks: itemsOf(v, notRun).map((i) => ({
-      id: i.check.id, number: i.n, name: i.check.name, state: i.status.state, label: itemLabel(i), reason: i.notRunReason ?? i.status.reason, lastOutcome: i.status.lastOutcome,
+      id: i.check.id, number: i.n, name: i.check.name, state: i.status.state, label: language === 'en' ? englishLabel(i) : itemLabel(i), reason: i.notRunReason ?? i.status.reason, lastOutcome: i.status.lastOutcome,
     })),
   }
 }
@@ -71,6 +73,8 @@ const HELP = [
   '/done-check 一个命令走完主路径：先预览清单，确认后执行检查并给出结论。',
   '',
   '常用：',
+  '- /done-check init：从已有项目脚本创建草稿，不覆盖已有清单',
+  '- /done-check lang en|zh：切换当前会话的输出语言',
   '- /done-check：按当前状态做下一件该做的事（预览清单 / 执行检查 / 看结论）',
   '- /done-check 确认：确认刚预览过的清单（只有你能确认）',
   '- /done-check ok [序号] / no [序号] [备注]：记录人工项的结论',
@@ -82,7 +86,7 @@ const HELP = [
   '英文写法等价：confirm / ok / no / details / all / tech / run。旧写法 show、pass、fail 仍可用，下个版本移除。',
 ].join('\n')
 
-export type Subcommand = 'smart' | 'status' | 'confirm' | 'ok' | 'no' | 'details' | 'all' | 'tech' | 'run' | 'help' | 'unknown'
+export type Subcommand = 'smart' | 'status' | 'confirm' | 'ok' | 'no' | 'details' | 'all' | 'tech' | 'run' | 'help' | 'init' | 'lang' | 'unknown'
 
 const ALIASES: Readonly<Record<string, Subcommand>> = {
   '': 'smart', status: 'status', 状态: 'status',
@@ -94,6 +98,7 @@ const ALIASES: Readonly<Record<string, Subcommand>> = {
   tech: 'tech', 技术详情: 'tech',
   run: 'run', 重新检查: 'run',
   help: 'help', 帮助: 'help',
+  init: 'init', 初始化: 'init', lang: 'lang', language: 'lang', 语言: 'lang',
 }
 
 export function parseCommandInput(raw: string): { sub: Subcommand; word: string; args: string[]; rest: string } {
@@ -102,9 +107,17 @@ export function parseCommandInput(raw: string): { sub: Subcommand; word: string;
   return { sub: ALIASES[word.toLowerCase()] ?? 'unknown', word, args, rest: trimmed.slice(word.length).trim() }
 }
 
-export function apply(ctx: Context): void {
+export interface Config { language?: 'en' | 'zh' }
+
+export function apply(ctx: Context, config: Config = {}): void {
   const store = new StateStore(dshHomePath('done-check'))
   const tools = ctx.tools as unknown as ToolsLike
+  const languages = new WeakMap<object, 'en' | 'zh'>()
+  const sessionFor = (agent: unknown) => (agent as AgentLike | undefined)?.session
+  const languageFor = (agent: unknown): 'en' | 'zh' => {
+    const session = sessionFor(agent)
+    return (session && languages.get(session)) ?? config.language ?? 'zh'
+  }
   // Optional: present on DSH 0.2+, absent on 0.1.x (then this callback never runs).
   let workingDirectory: WorkingDirectoryLike | undefined
   ctx.inject(['workingDirectory'], (c) => {
@@ -113,11 +126,18 @@ export function apply(ctx: Context): void {
   })
   const envFor = async (agent: unknown): Promise<ServiceEnv> => ({ root: await projectRootFor(agent, workingDirectory), store })
 
-  // The checklist each project was last previewed in, so `确认` only confirms what the user was shown.
-  const previews = new Map<string, string>()
-  const summary = (v: View, root: string, opts: { notRun?: NotRunReasons; preface?: readonly string[] } = {}) => {
-    if (needsConfirmation(v)) previews.set(root, previewDigest(v.checklist))
-    return renderSummary(v, opts)
+  // A different session's preview must never authorize this session's confirmation.
+  const previewSessions = new WeakMap<object, Map<string, string>>()
+  const previewsFor = (agent: unknown) => {
+    const session = sessionFor(agent)
+    if (!session) return new Map<string, string>()
+    let previews = previewSessions.get(session)
+    if (!previews) { previews = new Map(); previewSessions.set(session, previews) }
+    return previews
+  }
+  const summarize = (v: View, root: string, agent: unknown, opts: { notRun?: NotRunReasons; preface?: readonly string[] } = {}, language: 'en' | 'zh' = 'zh') => {
+    if (needsConfirmation(v)) previewsFor(agent).set(root, previewDigest(v.checklist))
+    return language === 'en' ? renderEnglish(v, opts.notRun) : renderSummary(v, opts)
   }
 
   ctx.tools.register(defineTool({
@@ -151,7 +171,7 @@ export function apply(ctx: Context): void {
       const path = `${root}/${CHECKLIST_FILE}`
       const parsed = parseChecklist(args.yaml)
       if (!parsed.ok) return { ok: false, errors: [...parsed.errors], warnings: [], normalized: null, path }
-      const snapshot = await snapshotWorkspace(root)
+      const snapshot = await snapshotWorkspace(root, undefined, parsed.checklist.checks.map((c) => c.watch))
       const errors = parsed.checklist.checks.flatMap((c) => {
         const e = watchCoverageError(c.watch, fingerprintFor(snapshot, c.watch))
         return e ? [`${c.id}: ${e}`] : []
@@ -176,7 +196,8 @@ export function apply(ctx: Context): void {
     async execute(_args, exec) {
       const env = await envFor(exec.agent)
       const v = await view(env)
-      return { ...statusValue(v), markdown: renderSummary(v) }
+      const language = languageFor(exec.agent)
+      return { ...statusValue(v, undefined, language), markdown: language === 'en' ? renderEnglish(v) : renderSummary(v) }
     },
   }))
 
@@ -202,11 +223,12 @@ export function apply(ctx: Context): void {
       })
       const notRun = notRunReasons(run)
       const v = await view(env)
+      const language = languageFor(exec.agent)
       return {
-        ...statusValue(v, notRun),
+        ...statusValue(v, notRun, language),
         ran: run.ran.map((x) => ({ id: x.checkId, outcome: x.outcome, exitCode: x.exitCode, unstable: x.unstable !== null })),
         skipped: run.skipped.map((s) => ({ id: s.checkId, reason: s.reason })),
-        markdown: renderSummary(v, { notRun, preface: runNote(run) }),
+        markdown: language === 'en' ? renderEnglish(v, notRun) : renderSummary(v, { notRun, preface: runNote(run) }),
       }
     },
   }))
@@ -214,14 +236,33 @@ export function apply(ctx: Context): void {
   ctx.commands.register({
     name: 'done-check',
     description: '验收清单：看懂 AI 做完后，哪些已经验证，哪些还需要处理',
-    input: { hint: '（留空）| 确认 | ok [序号] | no [序号] [备注] | 详情 [序号] | 全部 | 技术详情 | 重新检查' },
+    input: { hint: '（留空）| init | lang en|zh | 确认 | ok [序号] | no [序号] [备注] | 详情 [序号] | 全部 | 技术详情 | 重新检查' },
     async handler(inv) {
+      const language = languageFor(inv.agent)
+      const say = (zh: string, en: string) => language === 'en' ? en : zh
       try {
         const env = await envFor(inv.agent)
         const { sub, word, args, rest } = parseCommandInput(inv.rawInput)
         const execFor = () => toolExec(tools, { agent: inv.agent, callIdPrefix: `command-${inv.commandId}` })
         const ok = (text: string) => ({ kind: 'success' as const, text })
         const fail = (text: string) => ({ kind: 'error' as const, text })
+        const previews = previewsFor(inv.agent)
+        const summary = (v: View, root: string, opts: { notRun?: NotRunReasons; preface?: readonly string[] } = {}) => summarize(v, root, inv.agent, opts, language)
+
+        if (sub === 'lang') {
+          const value = args[0]
+          if (value !== 'en' && value !== 'zh') return fail('Usage: /done-check lang en|zh')
+          const session = sessionFor(inv.agent)
+          if (!session) return fail('A session is required to select a language.')
+          languages.set(session, value)
+          return ok(value === 'en' ? 'Output language: English. Enter /done-check help or /done-check init.' : '输出语言：中文。输入 /done-check 帮助 或 /done-check init。')
+        }
+        if (sub === 'init') {
+          const created = await initializeChecklist(env.root, language)
+          const v = await view(env)
+          const notice = say(created ? '已创建草稿。请按任务完善人工项说明，预览并确认后再运行；当前没有执行任何命令。' : '清单已存在，未覆盖。', created ? 'Draft created. Customize the manual instructions, then preview and confirm. No commands ran.' : 'Checklist already exists; it was not overwritten.')
+          return ok(notice + '\n\n' + summary(v, env.root))
+        }
 
         /** Run the given checks (all automatic ones when empty), then describe the new state. */
         const runAndSummarize = async (ids: readonly string[]) => {
@@ -253,7 +294,7 @@ export function apply(ctx: Context): void {
             }
             previews.delete(env.root)
             const after = await view(env)
-            return ok(renderSummary(after, { headline: confirmedHeadline(after), preface: ['输入 /done-check 会执行已确认的命令，按你当前的权限设置执行。'] }))
+            return ok(language === 'en' ? renderEnglish(after, undefined, { notice: 'Checklist confirmed. Enter /done-check to run the checks under your normal shell permissions.' }) : renderSummary(after, { headline: confirmedHeadline(after), preface: ['输入 /done-check 会执行已确认的命令，按你当前的权限设置执行。'] }))
           }
           case 'run': {
             const v = await view(env)
@@ -272,12 +313,13 @@ export function apply(ctx: Context): void {
             if (target) note = rest.slice(token!.length).trim()
             else if (pending.length === 1) target = { ok: true, item: pending[0]! }
             if (!target) {
-              if (!pending.length) return fail('现在没有等你确认的人工项。')
+              if (!pending.length) return fail(say('现在没有等你确认的人工项。', 'No manual item is awaiting your verdict.'))
+              if (language === 'en') return fail(`${pending.length} manual items are waiting. Use /done-check ${sub} <number>.`)
               return fail(`有 ${pending.length} 项等你确认，请指明序号：\n${pending.map((i) => `  ${i.n}. ${i.check.name}`).join('\n')}\n例如：/done-check ${sub} ${pending[0]!.n}`)
             }
-            if (!target.ok) return fail(target.message)
+            if (!target.ok) return fail(say(target.message, 'No matching check. Use its checklist number or ID.'))
             const { item } = target
-            if (!item.check.manual) return fail(`第 ${item.n} 项「${item.check.name}」是自动检查，由 /done-check 执行，不能手动记录结论。`)
+            if (!item.check.manual) return fail(say(`第 ${item.n} 项「${item.check.name}」是自动检查，由 /done-check 执行，不能手动记录结论。`, `Check ${item.n} is automatic. Run /done-check; it cannot receive a manual verdict.`))
             await decide(env, item.check.id, sub === 'ok' ? 'passed' : 'failed', note)
             return ok(summary(await view(env), env.root, { preface: [`${sub === 'ok' ? '已记录你的确认' : '已记录你的结论'}：「${item.check.name}」${sub === 'ok' ? '通过' : '未通过'}`] }))
           }
@@ -286,22 +328,23 @@ export function apply(ctx: Context): void {
             const v = await view(env)
             if (needsConfirmation(v)) return ok(summary(v, env.root))
             const level = sub === 'tech' ? 'tech' : 'run'
-            if (!args[0]) return ok(renderDetails(v, problemItems(v), level))
+            if (!args[0]) return ok(language === 'en' ? renderEnglish(v, undefined, { detail: level, items: problemItems(v) }) : renderDetails(v, problemItems(v), level))
             const r = resolveItem(itemsOf(v), args[0])
-            return r.ok ? ok(renderDetails(v, [r.item], level)) : fail(r.message)
+            return r.ok ? ok(language === 'en' ? renderEnglish(v, undefined, { detail: level, items: [r.item] }) : renderDetails(v, [r.item], level)) : fail(say(r.message, 'No matching check. Use its checklist number or ID.'))
           }
           case 'all': {
             const v = await view(env)
             if (needsConfirmation(v)) return ok(summary(v, env.root))
-            return ok(renderAll(v, 'run'))
+            return ok(language === 'en' ? renderEnglish(v, undefined, { detail: 'run' }) : renderAll(v, 'run'))
           }
           case 'help':
-            return ok(HELP)
+            return ok(language === 'en' ? ENGLISH_HELP : HELP)
           default:
-            return fail(`不认识的写法：${word}\n\n${HELP}`)
+            return fail(language === 'en' ? `Unknown subcommand: ${word}\n\n${ENGLISH_HELP}` : `不认识的写法：${word}\n\n${HELP}`)
         }
       } catch (err) {
-        return { kind: 'error', text: err instanceof DoneCheckError ? err.message : `done-check 出错：${(err as Error).message}` }
+        const message = (err as Error).message
+        return { kind: 'error', text: language === 'en' ? message.includes(`项目根目录没有 ${CHECKLIST_FILE}`) ? `No ${CHECKLIST_FILE} at the git root. Enter /done-check init to create a draft.` : `Unable to complete done-check: ${message}` : err instanceof DoneCheckError ? err.message : `done-check 出错：${message}` }
       }
     },
   })

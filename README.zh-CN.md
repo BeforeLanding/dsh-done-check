@@ -25,6 +25,8 @@
 dsh plugin --profile web add dsh-done-check
 ```
 
+**初始化和英文输出是 v0.2.1 源码中的新功能；npm 尚未发布该版本，当前请按[源码安装](https://github.com/BeforeLanding/dsh-done-check/blob/main/docs/USAGE.zh-CN.md#安装)体验。**
+
 使用其他由 CLI 管理的 profile 时，把 `web` 换成对应名称。安装后按宿主提示重新加载或重启。参见[源码安装](https://github.com/BeforeLanding/dsh-done-check/blob/main/docs/USAGE.zh-CN.md#安装)。
 
 ## 操作演示
@@ -51,7 +53,13 @@ dsh plugin --profile web add dsh-done-check
 
 ## 快速开始
 
-**1. 在 git 根目录添加清单。** 可以让 Agent 起草：
+**1. 在 git 根目录添加清单。** 在 DSH 对话中创建草稿：
+
+```text
+/done-check init
+```
+
+核对识别出的项目脚本，并把人工项说明改成具体的验收步骤。初始化不执行命令、不确认清单，也不覆盖已有文件。也可以让 Agent 起草：
 
 > 为当前任务起草并保存 done-check.yaml。使用项目里真实存在的测试命令，写清每项能验证什么；需要我亲自检查的内容写成人工项，并附上操作说明。
 
@@ -69,7 +77,7 @@ dsh plugin --profile web add dsh-done-check
 
 **3. 根据结果处理。** 失败时查看测试原文，让 Agent 修复问题，再运行 `/done-check`。人工项按说明自行验证，用 `/done-check ok [序号]` 或 `/done-check no [序号] [备注]` 记录结论；只有一项待人工确认时，可以省略序号。
 
-插件目前输出中文，命令同时接受中英文别名，例如 `确认` / `confirm`、`详情` / `details`。
+默认输出中文；可用 `/done-check lang en` 或 `/done-check lang zh` 切换当前会话的输出语言。命令同时接受中英文别名，例如 `确认` / `confirm`、`详情` / `details`；测试报告、任务名称和你的说明保持原文。
 
 ## 试用示例
 
@@ -117,7 +125,7 @@ pnpm build
 pnpm test
 ```
 
-**v0.2.0，早期版本。** 已在真实 DSH Web `0.1.5-rc.1` 和 `0.2.1-rc.5` 上验证，由真实 `pwsh` 工具在沙箱中执行。参见[更新日志](CHANGELOG.md)、[设计文档](https://github.com/BeforeLanding/dsh-done-check/blob/main/docs/DESIGN.md)和[素材构建说明](https://github.com/BeforeLanding/dsh-done-check/blob/main/docs/video/README.md)。
+**v0.2.1 源码，npm 待发布。** 已在真实 DSH Web `0.1.5-rc.1` 和 `0.2.1-rc.5` 上验证，由真实 `pwsh` 工具在沙箱中执行。参见[更新日志](CHANGELOG.md)、[设计文档](https://github.com/BeforeLanding/dsh-done-check/blob/main/docs/DESIGN.md)和[素材构建说明](https://github.com/BeforeLanding/dsh-done-check/blob/main/docs/video/README.md)。
 
 ## 许可证
 

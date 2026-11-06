@@ -178,6 +178,7 @@ export function deriveStatus(input: CheckInput): CheckStatus {
   if (confirmedHash !== hash) return { ...base, state: 'definition_changed' }
   if (!result) return { ...base, state: check.manual ? 'awaiting_manual' : 'not_run' }
   if ('corrupt' in result) return { ...base, state: 'unknown', reason: `证据无法读取：${result.corrupt}` }
+  if (check.manual !== (result.kind === 'manual')) return { ...base, state: 'unknown', reason: '证据类型与检查项不匹配' }
   if (result.definitionHash !== hash) return { ...base, state: check.manual ? 'awaiting_manual' : 'not_run' }
   if (result.kind === 'auto' && result.unstable) {
     return { ...base, state: 'unstable', lastOutcome: result.outcome, reason: describeInstability(result.unstable) }

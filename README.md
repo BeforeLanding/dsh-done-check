@@ -25,6 +25,8 @@ Requires **DSH `>=0.1.5-rc.1 <0.3.0`**, **Node.js `>=22.19`**, and a **git proje
 dsh plugin --profile web add dsh-done-check
 ```
 
+**The new initialization and English-output commands are in the v0.2.1 source. Until that npm release is published, use [source installation](https://github.com/BeforeLanding/dsh-done-check/blob/main/docs/USAGE.md#install) to try them.**
+
 For another CLI-managed profile, replace `web` with its name. Follow your host's reload or restart prompt. [Install from source](https://github.com/BeforeLanding/dsh-done-check/blob/main/docs/USAGE.md#install).
 
 ## Walkthrough
@@ -51,7 +53,14 @@ Chinese narration · English and Chinese captions<br>
 
 ## Quick start
 
-**1. Add a checklist at the git root.** Ask the agent:
+**1. Add a checklist at the git root.** Create a draft in your DSH chat:
+
+```text
+/done-check lang en
+/done-check init
+```
+
+Review the detected project scripts and replace the manual-review instructions with concrete acceptance steps. Initialization never executes commands, confirms a checklist or overwrites an existing one. You can also ask the agent:
 
 > Draft and save done-check.yaml for this task. Use the project's actual test commands and name what each one verifies. Add a manual item with instructions for anything I need to inspect myself.
 
@@ -69,7 +78,7 @@ The first command shows the checklist and commands without running them. `confir
 
 **3. Act on the result.** Read a failed test's report, ask the agent to fix the problem, then run `/done-check` again. For a manual item, follow its instructions and record `/done-check ok [n]` or `/done-check no [n] [note]`. Omit `n` when only one manual item is waiting.
 
-Plugin output is currently Chinese. Commands accept both English and Chinese aliases, including `confirm` / `确认` and `details` / `详情`.
+Output defaults to Chinese. Use `/done-check lang en` or `/done-check lang zh` for the current session. Commands accept both languages, including `confirm` / `确认` and `details` / `详情`. Test reports, task names and your instructions are preserved as written.
 
 ## Try the example
 
@@ -117,7 +126,7 @@ pnpm build
 pnpm test
 ```
 
-**v0.2.0, early release.** Verified on real DSH Web `0.1.5-rc.1` and `0.2.1-rc.5`, with the real `pwsh` tool in its sandbox. See the [changelog](CHANGELOG.md), [design notes (Chinese)](https://github.com/BeforeLanding/dsh-done-check/blob/main/docs/DESIGN.md) and [media build instructions](https://github.com/BeforeLanding/dsh-done-check/blob/main/docs/video/README.md).
+**v0.2.1 source, npm release pending.** Verified on real DSH Web `0.1.5-rc.1` and `0.2.1-rc.5`, with the real `pwsh` tool in its sandbox. See the [changelog](CHANGELOG.md), [design notes (Chinese)](https://github.com/BeforeLanding/dsh-done-check/blob/main/docs/DESIGN.md) and [media build instructions](https://github.com/BeforeLanding/dsh-done-check/blob/main/docs/video/README.md).
 
 ## License
 

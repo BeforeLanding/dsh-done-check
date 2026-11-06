@@ -6,6 +6,8 @@
 
 ## 安装
 
+v0.2.1 新功能目前通过源码安装使用，npm 待发布。打包 CI 会安装官方 DSH `0.1.5-rc.3` 和 `0.2.1-rc.5` 运行时，并用测试专用 shell 工具执行真实进程；不覆盖桌面界面或模型供应商。包的 peer 范围明确列入 RC5，避免 npm 排除宽泛范围里的其他预发布版本。
+
 需要 DSH `>=0.1.5-rc.1 <0.3.0`、Node.js `>=22.19` 和 git。在 git 项目里打开 DSH 会话，清单放在 git 根目录。
 
 ```bash
@@ -20,7 +22,13 @@ pnpm build
 dsh plugin --profile <your-profile> add /absolute/path/to/dsh-done-check
 ```
 
-目前插件输出中文，主要子命令同时支持英文别名。
+## 初始化与输出语言
+
+在项目的 DSH 对话里输入 `/done-check init` 创建草稿。初始化会识别 `package.json` 中真实存在的 `test`、`typecheck`、`lint` 脚本，并添加人工验收项；没有适用脚本时，只生成人工项。确认前请按实际任务改写名称、人工操作步骤和预期结果。项目脚本是基础检查，不会被当成具体功能已验收。
+
+初始化不会运行命令、确认检查或覆盖已有文件。默认输出中文，`/done-check lang en` 或 `/done-check lang zh` 只切换当前会话的语言，重建会话后恢复默认值；管理员也可通过插件的 `language` 选项设置默认语言。预览、状态、结果、详情和帮助支持英文；任务名称、人工说明、测试输出与原始诊断保持原文。
+
+主要子命令同时支持中英文别名。
 
 ## 编写清单
 
@@ -71,6 +79,8 @@ checks:
 
 ## 命令参考
 
+- `/done-check init`（`初始化`）：创建草稿，不覆盖、不运行。
+- `/done-check lang en|zh`（`语言`）：切换当前会话语言。
 - `/done-check`：预览、执行需要检查的项目，或展示结论。
 - `/done-check 确认`（`confirm`）：**仅用户**能确认最近一次预览。
 - `/done-check ok [序号]` / `/done-check no [序号] [备注]`：**仅用户**能记录人工结论。
@@ -89,7 +99,7 @@ Agent 工具：
 - `done_check_run`：执行已确认的自动项，记录证据。
 - `done_check_status`：读取当前结论与下一步。
 
-这些工具都不能确认清单，也不能决定人工项。
+这些工具都不能确认清单，也不能决定人工项。清单结构或检查定义变更后，所有入口都会阻止自动运行和人工结论写入，直到用户重新确认。
 
 ## 信任与边界
 
@@ -110,6 +120,9 @@ pnpm install
 pnpm typecheck
 pnpm build
 pnpm test
+pnpm test:example
+npm run smoke:package -- 0.1.5-rc.3
+npm run smoke:package -- 0.2.1-rc.5
 ```
 
 参见[设计文档](DESIGN.md)、[更新日志](../CHANGELOG.md)与[素材制作指南](video/README.md)。

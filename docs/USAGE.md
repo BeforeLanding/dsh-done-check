@@ -6,6 +6,8 @@
 
 ## Install
 
+The v0.2.1 changes are available from source; the npm release is pending. Package CI installs against official DSH runtimes `0.1.5-rc.3` and `0.2.1-rc.5` (including real process execution through a test-only shell tool). It does not exercise the desktop UI or a model provider. The RC5 version is explicitly included in package peer ranges because npm excludes later prerelease tuples from a broad comparator.
+
 Requires DSH `>=0.1.5-rc.1 <0.3.0`, Node.js `>=22.19`, and git. Open a DSH session in a git project; the checklist belongs at its git root.
 
 ```bash
@@ -20,7 +22,20 @@ pnpm build
 dsh plugin --profile <your-profile> add /absolute/path/to/dsh-done-check
 ```
 
-Plugin output is currently Chinese. All primary subcommands also have English aliases.
+## Initialize and choose a language
+
+In a DSH chat opened in your git project:
+
+```text
+/done-check lang en
+/done-check init
+```
+
+`init` detects existing `test`, `typecheck` and `lint` scripts in `package.json` and adds a manual review item. Without suitable scripts, it creates a manual-only checklist. The draft uses no inferred feature claims: edit its task, names and manual instructions before confirmation. It never runs commands, confirms checks or replaces an existing file. Package scripts are baseline checks, not proof of feature acceptance.
+
+Output defaults to Chinese. `/done-check lang en|zh` changes only the current session (until it ends); an administrator can set the plugin's `language` option to `en` or `zh` for the default. English output covers preview, status, results, details and help. Task names, manual instructions, test output and raw diagnostic messages keep their original text.
+
+All primary subcommands also have Chinese aliases.
 
 ## Write a checklist
 
@@ -71,6 +86,8 @@ When the current fingerprint differs from the recorded one, the result needs a r
 
 ## Command reference
 
+- `/done-check init` (`初始化`) — create a draft without overwriting or running it.
+- `/done-check lang en|zh` (`语言`) — set the current session language.
 - `/done-check` — preview, run checks that are due, or show the verdict.
 - `/done-check confirm` (`确认`) — **human only**: confirm the latest preview.
 - `/done-check ok [n]` / `/done-check no [n] [note]` — **human only**: record a manual verdict.
@@ -89,7 +106,7 @@ Agent tools:
 - `done_check_run` executes confirmed automatic checks and records evidence.
 - `done_check_status` reads the current verdict and next step.
 
-None can confirm a checklist or decide a manual item.
+None can confirm a checklist or decide a manual item. A structure or definition change blocks automatic runs and manual decisions through every entry point until the checklist is confirmed again.
 
 ## Trust and limits
 
@@ -110,6 +127,9 @@ pnpm install
 pnpm typecheck
 pnpm build
 pnpm test
+pnpm test:example
+npm run smoke:package -- 0.1.5-rc.3
+npm run smoke:package -- 0.2.1-rc.5
 ```
 
 See [DESIGN.md](DESIGN.md), the [changelog](../CHANGELOG.md) and [media build guide](video/README.md).

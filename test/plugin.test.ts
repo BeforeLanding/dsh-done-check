@@ -9,7 +9,7 @@ import { spawnSync } from 'node:child_process'
 import { mkdtempSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { after, before, describe, it } from 'node:test'
+import { after, before, beforeEach, describe, it } from 'node:test'
 import { Context, Service } from '@deepseek-ai/cordis'
 import CommandRuntime from '@deepseek-ai/dsh-commands'
 import SystemPrompt from '@deepseek-ai/dsh-system-prompt'
@@ -75,6 +75,7 @@ before(async () => {
 })
 
 after(cleanupAll)
+beforeEach(() => { shellCalls.length = 0 })
 
 const agentFor = (cwd: string) => ({ session: { header: { cwd } } })
 let seq = 0
@@ -88,6 +89,50 @@ async function command(agent: unknown, input: string) {
 }
 
 describe('plugin on the real DSH runtimes', () => {
+  it('does not let another session preview on behalf of the confirming user', async () => {
+    const repo = makeRepo({ 'src/a.ts': 'a\n' })
+    repo.write('done-check.yaml', CHECKLIST)
+    const first = agentFor(repo.root)
+    const second = agentFor(repo.root)
+    await command(first, '')
+    repo.write('done-check.yaml', CHECKLIST.replace('新增 CSV 导出功能', 'Changed task'))
+    await command(second, '')
+    assert.match((await command(first, 'confirm')).text, /你还没看过这份清单/)
+    assert.equal((await callTool('done_check_run', {}, first)).value.ran.length, 0)
+    assert.equal(shellCalls.length, 0)
+  })
+  it('initializes a draft and localizes preview, status and evidence without altering raw output', async () => {
+    const repo = makeRepo({ 'package.json': JSON.stringify({ scripts: { test: 'node -e "console.error(\'ORIGINAL_REPORT\');process.exit(1)"' } }) })
+    const agent = agentFor(repo.root)
+    await command(agent, 'lang en')
+    const init = await command(agent, 'init')
+    assert.match(init.text, /Draft created/)
+    assert.match(init.text, /Nothing runs during preview/)
+    assert.match((await command(agent, 'init')).text, /not overwritten/)
+    const early = await callTool('done_check_run', {}, agent)
+    assert.equal(early.value.ran.length, 0)
+    assert.match(early.value.verdict, /review and confirm/)
+    await command(agent, 'confirm')
+    assert.match((await command(agent, '')).text, /ORIGINAL_REPORT/)
+    assert.match((await command(agent, 'details 1')).text, /Exit code: 1/)
+    assert.match((await callTool('done_check_status', {}, agent)).value.verdict, /failed/)
+    assert.match((await command(agent, 'help')).text, /force-run/)
+    assert.match((await command(agentFor(repo.root), 'help')).text, /常用/, 'language selection is session-scoped')
+  })
+  it('the agent tool obeys the same whole-checklist confirmation guard as user commands', async () => {
+    const repo = makeRepo({ 'src/a.ts': 'a\n' })
+    repo.write('done-check.yaml', CHECKLIST)
+    const agent = agentFor(repo.root)
+    await command(agent, '')
+    await command(agent, 'confirm')
+    repo.write('done-check.yaml', CHECKLIST.replace(/  - id: lint\n.*\n.*\n/, ''))
+    const before = shellCalls.length
+    const tool = await callTool('done_check_run', { ids: ['tests'] }, agent)
+    assert.equal(tool.value.ran.length, 0)
+    assert.match(tool.value.skipped[0].reason, /重新确认/)
+    await command(agent, 'run tests')
+    assert.equal(shellCalls.length, before)
+  })
   it('registers three agent tools and the /done-check command', () => {
     for (const t of ['done_check_draft', 'done_check_status', 'done_check_run']) assert.ok(ctx.tools.get(t), t)
   })

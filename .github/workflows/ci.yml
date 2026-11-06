@@ -25,3 +25,23 @@ jobs:
       - run: pnpm typecheck
       - run: pnpm build
       - run: pnpm test
+      - run: pnpm test:example
+
+  package-compatibility:
+    name: Package / ${{ matrix.os }} / DSH ${{ matrix.dsh }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+        dsh: ['0.1.5-rc.3', '0.2.1-rc.5']
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm build
+      - run: npm run smoke:package -- ${{ matrix.dsh }}

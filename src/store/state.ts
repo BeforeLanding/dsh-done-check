@@ -2,6 +2,7 @@ import { randomBytes } from 'node:crypto'
 import { mkdir, readFile, realpath, rename, rm, stat, writeFile } from 'node:fs/promises'
 import { join } from 'node:path'
 import { sha256 } from '../core/hash.ts'
+import { validRun, validState } from './validate.ts'
 import type { ActiveRun, ChecklistConfirmation, NotExecutedAttempt, CompletedRun, CorruptRecord, LogRef, RunRecord } from '../core/status.ts'
 
 /** Bytes of stdout/stderr kept inline in a run record. */
@@ -76,8 +77,8 @@ export class StateStore {
       return { ok: false, reason: (err as Error).message }
     }
     try {
-      const parsed = JSON.parse(text) as ProjectState
-      if (parsed?.version !== 1 || typeof parsed.latest !== 'object' || typeof parsed.history !== 'object') {
+      const parsed: unknown = JSON.parse(text)
+      if (!validState(parsed)) {
         return { ok: false, reason: 'state.json 格式不符' }
       }
       return { ok: true, state: parsed }
@@ -110,8 +111,9 @@ export class StateStore {
 
   async readRun(root: string, runId: string): Promise<RunRecord | CorruptRecord> {
     try {
-      const rec = JSON.parse(await readFile(join(await this.dirFor(root), 'runs', `${runId}.json`), 'utf8')) as RunRecord
-      if (rec?.runId !== runId || typeof rec.fingerprint?.digest !== 'string') return { corrupt: `运行记录 ${runId} 格式不符` }
+      if (!/^[a-zA-Z0-9-]+$/.test(runId)) return { corrupt: '运行编号格式不符' }
+      const rec: unknown = JSON.parse(await readFile(join(await this.dirFor(root), 'runs', `${runId}.json`), 'utf8'))
+      if (!validRun(rec) || rec.runId !== runId) return { corrupt: `运行记录 ${runId} 格式不符` }
       return rec
     } catch (err) {
       return { corrupt: `运行记录 ${runId}：${(err as Error).message}` }
@@ -123,7 +125,8 @@ export class StateStore {
     const out: Record<string, CompletedRun | CorruptRecord> = {}
     for (const [checkId, runId] of Object.entries(state.latest)) {
       const rec = await this.readRun(root, runId)
-      out[checkId] = 'corrupt' in rec ? rec : rec.kind === 'cancelled' ? { corrupt: `索引指向已取消的运行 ${runId}` } : rec
+      out[checkId] = 'corrupt' in rec ? rec : rec.checkId !== checkId ? { corrupt: '记录与检查项不匹配' }
+        : rec.kind === 'cancelled' ? { corrupt: `索引指向已取消的运行 ${runId}` } : rec
     }
     return out
   }
